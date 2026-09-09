@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { validateEmail } from '../auth/validation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login, isAuthenticated, user } = useAuth();
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -40,7 +39,7 @@ export default function LoginPage() {
     setBusy(true); setServerError('');
     try {
       const session = await login({ email: form.email.trim(), password: form.password });
-      const destination = session.role === 'Admin' ? '/admin' : (location.state?.from || '/student');
+      const destination = session.role === 'Admin' ? '/admin' : '/student';
       navigate(destination, { replace: true });
     } catch (error) {
       setServerError(error.code === 'API_UNREACHABLE'
