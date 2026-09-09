@@ -29,6 +29,7 @@ function Header() {
           <a href="#what-it-helps">What it helps with</a>
         </nav>
         <div className="nav-actions">
+          <Link className="button button-quiet" to="/demo">Workflow demo</Link>
           <Link className="button button-quiet" to="/login">Log in</Link>
           <Link className="button button-primary" to="/register">Get started</Link>
         </div>
