@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import GuideCharacter from '../components/GuideCharacter';
 
 const steps = [
   ['01', 'Answer a few questions', 'Tell us your year, deadline, project type, time, and where you need the most help.'],
@@ -21,8 +22,8 @@ function Header() {
     <header className="site-header">
       <div className="container nav">
         <Link className="brand" to="/" aria-label="ProjectMentor home">
-          <span className="brand-mark">PM</span>
-          <span>ProjectMentor</span>
+          <span className="brand-star" aria-hidden="true">PM</span>
+          <span>PROJECT MENTOR</span>
         </Link>
         <nav className="nav-links" aria-label="Main navigation">
           <a href="#how-it-works">How it works</a>
@@ -65,7 +66,7 @@ function HowItWorks() {
           <p>ProjectMentor is not a chat window. It is a guided workflow that uses your answers, checks the plan, and gives you a chance to approve it.</p>
         </div>
         <div className="steps">
-          {steps.map(([number, title, copy]) => <article className="step" key={number}><span className="step-label">STEP {number}</span><h3>{title}</h3><p>{copy}</p></article>)}
+          {steps.map(([number, title, copy], index) => <article className="step" data-guide-pose={['questions', 'roadmap', 'review'][index]} key={number}><span className="step-label">STEP {number}</span><h3>{title}</h3><p>{copy}</p></article>)}
         </div>
       </div>
     </section>
@@ -93,5 +94,5 @@ function Footer() {
 }
 
 export default function HomePage() {
-  return <div className="site-shell"><Header /><main><section className="hero"><div className="container hero-grid"><div className="hero-copy"><p className="eyebrow">For the student with a blank project brief</p><h1>Know what to do next.</h1><p>ProjectMentor helps undergraduates take a project from choosing a title to deploying the result, with a structured roadmap built around their actual deadline and experience.</p><div className="hero-actions"><Link className="button button-primary" to="/register">Create your roadmap <span aria-hidden="true">&nbsp;→</span></Link><Link className="button button-quiet" to="/login">Log in</Link></div><p className="hero-note">You review the plan before it becomes active.</p></div><RoadmapPreview /></div></section><HowItWorks /><PainPoints /><section className="cta-band"><div className="container cta-content"><div><p className="eyebrow">Start with the questions</p><h2>Make the next step visible.</h2><p>Give your project a little structure before the deadline gives it to you.</p></div><div className="cta-actions"><Link className="button button-primary" to="/register">Get started</Link><Link className="button button-quiet" to="/login">Log in</Link></div></div></section></main><Footer /></div>;
+  return <div className="site-shell"><Header /><main><section className="hero" data-guide-pose="hero"><div className="container hero-grid"><div className="hero-copy"><p className="eyebrow">For the student with a blank project brief</p><h1>Know what to do next.</h1><p>ProjectMentor helps undergraduates take a project from choosing a title to deploying the result, with a structured roadmap built around their actual deadline and experience.</p><div className="hero-actions"><Link className="button button-primary" to="/register">Create your roadmap <span aria-hidden="true">&nbsp;→</span></Link><Link className="button button-quiet" to="/login">Log in</Link></div><p className="hero-note">You review the plan before it becomes active.</p></div><RoadmapPreview /></div></section><HowItWorks /><PainPoints /><section className="cta-band" data-guide-pose="cta"><div className="container cta-content"><div><p className="eyebrow">Start with the questions</p><h2>Make the next step visible.</h2><p>Give your project a little structure before the deadline gives it to you.</p></div><div className="cta-actions"><Link className="button button-primary" to="/register">Get started</Link><Link className="button button-quiet" to="/login">Log in</Link></div></div></section></main><Footer /><GuideCharacter /></div>;
 }
