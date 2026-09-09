@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
 const steps = [
   ['01', 'Answer a few questions', 'Tell us your year, deadline, project type, time, and where you need the most help.'],
@@ -17,6 +18,9 @@ const painPoints = [
 ];
 
 function Header() {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
+
   return (
     <header className="site-header">
       <div className="container nav">
@@ -29,8 +33,7 @@ function Header() {
           <a href="#what-it-helps">What it helps with</a>
         </nav>
         <div className="nav-actions">
-          <Link className="button button-quiet" to="/login">Log in</Link>
-          <Link className="button button-primary" to="/register">Get started</Link>
+          {isAuthenticated ? <><span className="session-indicator">Signed in as {user.fullName}</span><button className="button button-quiet" type="button" onClick={() => { logout(); navigate('/'); }}>Log out</button></> : <><Link className="button button-quiet" to="/demo">Workflow demo</Link><Link className="button button-quiet" to="/login">Log in</Link><Link className="button button-primary" to="/register">Get started</Link></>}
         </div>
       </div>
     </header>
