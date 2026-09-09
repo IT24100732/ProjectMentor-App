@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { acceptRoadmap, createRoadmapRequest, getRoadmapRequest, login, requestRevision } from '../api/projectMentorApi';
+import { acceptRoadmap, createRoadmapRequest, getRoadmapRequest, requestRevision } from '../api/projectMentorApi';
+import { useAuth } from '../auth/AuthContext';
 
 const demoStudent = { email: 'react.demo@projectmentor.local', password: 'Student123!', fullName: 'React Demo Student', yearOfStudy: 2 };
 const showAgentModeIndicator = true;
 
 export default function EndToEndPage() {
-  const [token, setToken] = useState('');
   const [workflow, setWorkflow] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const { token, login } = useAuth();
 
   async function startWorkflow() {
     setBusy(true); setError('');
@@ -17,7 +18,6 @@ export default function EndToEndPage() {
       if (session.role !== 'Student') {
         throw new Error('The demo account does not have Student permissions. Re-run the database seed/migration.');
       }
-      setToken(session.token);
       const created = await createRoadmapRequest(session.token, { year: 2, projectType: 'web', deadline: '2026-10-30', hoursPerWeek: 8 });
       setWorkflow(await getRoadmapRequest(session.token, created.roadmapRequestId));
     } catch (exception) {
