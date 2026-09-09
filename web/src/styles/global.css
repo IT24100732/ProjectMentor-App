@@ -70,6 +70,13 @@ p { margin: 0; }
 .footer-content a:hover { color: var(--blueprint); }
 .placeholder-page { min-height: 100vh; display: grid; align-content: center; justify-items: start; width: min(720px, calc(100% - 48px)); margin: auto; }
 .placeholder-page p:not(.eyebrow) { margin: 16px 0 28px; color: var(--slate); }
+.e2e-page { width: min(860px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0; }
+.e2e-page > p:not(.eyebrow) { margin: 16px 0 28px; color: var(--slate); }
+.workflow-panel { margin-top: 36px; padding: 28px; border: 1px solid var(--line); background: var(--white); box-shadow: var(--shadow); }
+.workflow-panel ol { padding-left: 24px; }
+.workflow-panel li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.workflow-panel small { display: block; color: var(--slate); }
+.error-message { margin-top: 24px; color: #a23a2f; }
 @keyframes settle { from { opacity: 0; transform: translateY(16px) rotate(1deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
 @media (max-width: 850px) { .hero-grid, .section-intro { grid-template-columns: 1fr; gap: 40px; } .hero { padding: 64px 0 80px; } .steps { grid-template-columns: repeat(2, 1fr); } .step:nth-child(2) { border-right: 0; } .step:nth-child(3), .step:nth-child(4) { border-top: 1px solid #4c6574; } .step:nth-child(3) { padding-left: 0; } .cta-content { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 620px) { body { font-size: 17px; } .container { width: min(100% - 32px, 1180px); } .nav-links { display: none; } .nav-actions .button-quiet { display: none; } .hero-grid { grid-template-columns: 1fr; } .roadmap-preview { padding: 20px; } .section { padding: 78px 0; } .steps, .pain-grid { grid-template-columns: 1fr; } .step, .step:not(:first-child), .pain, .pain:nth-child(3n + 2), .pain:nth-child(3n + 3) { min-height: auto; padding: 24px 0; border-right: 0; border-left: 0; border-bottom: 1px solid var(--line); } .step:not(:first-child) { border-left: 0; } .step-label { margin-bottom: 28px; } .cta-actions { align-items: stretch; flex-direction: column; width: 100%; } .footer-content { align-items: flex-start; flex-direction: column; gap: 10px; } }
