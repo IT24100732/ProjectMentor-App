@@ -1,0 +1,17 @@
+:root {
+  --ink: #162a3a;
+  --ink-soft: #294458;
+  --slate: #476579;
+  --blueprint: #2f6f95;
+  --blueprint-dark: #20536f;
+  --paper: #f7f8f5;
+  --white: #ffffff;
+  --pale-blue: #dceaf1;
+  --line: #c7d4d9;
+  --yellow: #e6b84a;
+  --coral: #c96d5a;
+  --shadow: 0 18px 45px rgba(22, 42, 58, 0.12);
+  --display: 'DM Sans', 'Trebuchet MS', sans-serif;
+  --body: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', 'Consolas', monospace;
+}
