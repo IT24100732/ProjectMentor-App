@@ -22,3 +22,7 @@ appsettings.Local.json
 ## OS files
 .DS_Store
 Thumbs.db
+
+web/dist/
+web/node_modules/
+
