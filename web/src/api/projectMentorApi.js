@@ -1,12 +1,23 @@
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5220';
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    });
+  } catch {
+    const error = new Error('Cannot reach the API — make sure the backend and database are running.');
+    error.code = 'API_UNREACHABLE';
+    throw error;
+  }
   const body = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(body?.title ?? body ?? `Request failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(body?.title ?? body ?? `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
   return body;
 }
 

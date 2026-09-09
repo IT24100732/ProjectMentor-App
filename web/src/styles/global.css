@@ -73,6 +73,7 @@ p { margin: 0; }
 .e2e-page { width: min(860px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0; }
 .e2e-page > p:not(.eyebrow) { margin: 16px 0 28px; color: var(--slate); }
 .workflow-panel { margin-top: 36px; padding: 28px; border: 1px solid var(--line); background: var(--white); box-shadow: var(--shadow); }
+.demo-note, .workflow-note, .revision-note { display: block; margin-top: 12px; color: var(--slate); font-size: 0.82rem; }
 .workflow-panel ol { padding-left: 24px; }
 .workflow-panel li { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .workflow-panel small { display: block; color: var(--slate); }
