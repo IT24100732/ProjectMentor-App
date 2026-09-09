@@ -1,8 +1,16 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using ProjectMentor.Api.Services;
 using ProjectMentor.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var jwtSecret = builder.Configuration["JWT_SECRET"]
+    ?? Environment.GetEnvironmentVariable("JWT_SECRET")
+    ?? "ProjectMentor-development-secret-change-before-production-1234567890";
 
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
 dataSourceBuilder.MapEnum<UserRole>("user_role");
@@ -25,6 +33,28 @@ var dataSource = dataSourceBuilder.Build();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<ProjectMentorDbContext>(options =>
     options.UseNpgsql(dataSource));
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<WorkflowService>();
+builder.Services.AddScoped<PlannerAgent>();
+builder.Services.AddScoped<ResourceAgent>();
+builder.Services.AddScoped<AnalysisAgent>();
+builder.Services.AddScoped<ValidationAgent>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCors(options => options.AddPolicy("web", policy =>
+    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -46,6 +76,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("web");
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
