@@ -39,6 +39,17 @@ public sealed class RoadmapRequestsController(WorkflowService workflow) : Contro
             ? new RoadmapResponse(Guid.Empty, "None", request.Status.ToString(), [])
             : RoadmapMapper.Map(request, roadmap));
     }
+
+    [HttpGet("current")]
+    public async Task<ActionResult<RoadmapResponse>> GetCurrent(CancellationToken cancellationToken)
+    {
+        var request = await workflow.GetLatestAsync(User.GetUserId(), cancellationToken);
+        if (request is null) return NoContent();
+        var roadmap = request.Roadmaps.OrderByDescending(x => x.Version).FirstOrDefault();
+        return Ok(roadmap is null
+            ? new RoadmapResponse(Guid.Empty, "None", request.Status.ToString(), [])
+            : RoadmapMapper.Map(request, roadmap));
+    }
 }
 
 internal static class RoadmapMapper

@@ -102,6 +102,14 @@ public sealed class WorkflowService(
             .Include(x => x.WorkflowRuns)
             .SingleOrDefaultAsync(x => x.Id == requestId && x.StudentId == studentId, cancellationToken);
 
+    public async Task<RoadmapRequest?> GetLatestAsync(Guid studentId, CancellationToken cancellationToken) =>
+        await db.RoadmapRequests.AsSplitQuery()
+            .Include(x => x.Roadmaps).ThenInclude(x => x.Milestones).ThenInclude(x => x.Resources).ThenInclude(x => x.Resource)
+            .Include(x => x.WorkflowRuns)
+            .Where(x => x.StudentId == studentId)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
     private static QuestionAnswer Answer<T>(Guid requestId, Guid questionId, T value) => new()
     {
         Id = Guid.NewGuid(), RoadmapRequestId = requestId, QuestionId = questionId,

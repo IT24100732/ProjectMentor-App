@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FeaturePlaceholderPage from './pages/FeaturePlaceholderPage';
 import EndToEndPage from './pages/EndToEndPage';
+import StudentHomePage from './pages/StudentHomePage';
 import { RequireAuth, RequireRole } from './auth/RouteGuards';
 
 export default function App() {
@@ -15,7 +16,7 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<RequireRole role="Student" />}>
-          <Route path="/student" element={<FeaturePlaceholderPage eyebrow="Student workspace" title="Your project starts here" description="Your roadmap workspace will appear here. Use the workflow demo to exercise the current end-to-end slice." />} />
+          <Route path="/student" element={<StudentHomePage />} />
           <Route path="/planning" element={<FeaturePlaceholderPage eyebrow="Planning workspace" title="Build your roadmap" description="The planning workspace will turn an approved intake into milestones, dates, and attached resources." />} />
           <Route path="/resources" element={<FeaturePlaceholderPage eyebrow="Resource hub" title="Find the right help" description="The resource hub will organize tutorials, documentation, and videos around each milestone." />} />
           <Route path="/progress" element={<FeaturePlaceholderPage eyebrow="Progress tracking" title="See what is moving" description="Progress tracking will bring milestone status, overdue work, and reminders into one view." />} />
