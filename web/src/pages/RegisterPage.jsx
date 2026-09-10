@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import GuideCharacter from '../components/GuideCharacter';
 import { registerStudent } from '../api/projectMentorApi';
 import { useAuth } from '../auth/AuthContext';
 import { validateEmail } from '../auth/validation';
@@ -101,6 +102,7 @@ export default function RegisterPage() {
         <p className="auth-switch">Already have an account? <Link to="/login">Log in</Link></p>
         <Link className="auth-back" to="/">Back to home</Link>
       </section>
+      <GuideCharacter initialPose="questions" message="Create your account first. Then I can help turn your project brief into a focused roadmap." />
     </main>
   );
 }

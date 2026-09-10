@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import GuideCharacter from '../components/GuideCharacter';
 import { useAuth } from '../auth/AuthContext';
 import { validateEmail } from '../auth/validation';
 
@@ -73,6 +74,7 @@ export default function LoginPage() {
         <p className="auth-switch">New to ProjectMentor? <Link to="/register">Create an account</Link></p>
         <Link className="auth-back" to="/">Back to home</Link>
       </section>
+      <GuideCharacter initialPose="review" message="Welcome back. Once you log in, I can help you pick up the milestone you left unfinished." />
     </main>
   );
 }
