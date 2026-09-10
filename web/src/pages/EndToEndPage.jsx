@@ -42,17 +42,17 @@ export default function EndToEndPage() {
   }
 
   return (
-    <main className="e2e-page">
+    <main className="page">
       <p className="eyebrow">End-to-end skeleton</p>
-      <h1>Roadmap pipeline</h1>
-      <p>React - API - PostgreSQL - four agents - validation - student approval.</p>
+      <h1>Roadmap pipeline.</h1>
+      <p className="page-lede">React → API → PostgreSQL → four agents → validation → student approval. One workflow, all the way through.</p>
       {!workflow && <><button className="button button-primary" disabled={busy} onClick={startWorkflow}>{busy ? 'Running workflow...' : 'Login and generate roadmap'}</button><small className="demo-note">This calls the live API and PostgreSQL database. No canned or scripted data.</small></>}
       {workflow && <section className="workflow-panel">
         <div><strong>Request:</strong> {workflow.requestStatus}</div>
         <div><strong>Roadmap:</strong> {workflow.status}</div>
-        {showAgentModeIndicator && <p className="workflow-note">Agents: rule-based (Phase 1) — LLM reasoning coming in a later phase.</p>}
+        {showAgentModeIndicator && <p className="note">Agents: rule-based (Phase 1) — LLM reasoning coming in a later phase.</p>}
         <ol>{workflow.milestones.map(milestone => <li key={milestone.id}><strong>{milestone.phase}</strong> {milestone.title} <small>{milestone.dueDate} · {milestone.status}</small></li>)}</ol>
-        {workflow.status === 'PendingApproval' && <div className="hero-actions"><button className="button button-primary" disabled={busy} onClick={() => decide('accept')}>Accept roadmap</button><button className="button button-quiet" disabled={busy} onClick={() => decide('revision')}>Request revision</button><small className="revision-note">Revision is recorded for a later re-plan; no new plan is generated yet.</small></div>}
+        {workflow.status === 'PendingApproval' && <div className="hero-actions"><button className="button button-primary" disabled={busy} onClick={() => decide('accept')}>Accept roadmap</button><button className="button button-quiet" disabled={busy} onClick={() => decide('revision')}>Request revision</button><small className="demo-note">Revision is recorded for a later re-plan; no new plan is generated yet.</small></div>}
       </section>}
       {error && <p className="error-message">{error}</p>}
     </main>

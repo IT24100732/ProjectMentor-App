@@ -1,8 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 import { registerStudent } from '../api/projectMentorApi';
 import { useAuth } from '../auth/AuthContext';
 import { validateEmail } from '../auth/validation';
+
+function AuthAside() {
+  return (
+    <aside className="auth-aside band-dark">
+      <div className="hero-media" aria-hidden="true">
+        <img src="/hero-hands.png" alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
+      </div>
+      <div className="auth-aside-inner">
+        <p className="eyebrow">ProjectMentor</p>
+      </div>
+      <div>
+        <blockquote>“Your deadline doesn’t care how busy you were. Let’s make a plan it can’t argue with.”</blockquote>
+        <p className="sig">— The Examiner</p>
+      </div>
+    </aside>
+  );
+}
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -14,7 +32,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-    navigate(user.role === 'Admin' ? '/admin' : '/student', { replace: true });
+      navigate(user.role === 'Admin' ? '/admin' : '/student', { replace: true });
     }
   }, [isAuthenticated, navigate, user]);
 
@@ -63,44 +81,49 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-panel">
-        <p className="eyebrow">Start with your project</p>
-        <h1>Create your account</h1>
-        <p className="auth-intro">Set up your student account before turning your project brief into a roadmap.</p>
-        <form className="auth-form" onSubmit={submit} noValidate>
-          <label className="form-field">Full name
-            <input name="fullName" type="text" autoComplete="name" value={form.fullName} onChange={updateField} aria-invalid={Boolean(errors.fullName)} />
-            {errors.fullName && <small className="field-error">{errors.fullName}</small>}
-          </label>
-          <label className="form-field">Email
-            <input name="email" type="email" autoComplete="email" value={form.email} onChange={updateField} aria-invalid={Boolean(errors.email)} />
-            {errors.email && <small className="field-error">{errors.email}</small>}
-          </label>
-          <label className="form-field">Year of study <span className="optional">optional</span>
-            <select name="yearOfStudy" value={form.yearOfStudy} onChange={updateField}>
-              <option value="">Choose a year</option>
-              <option value="1">Year 1</option>
-              <option value="2">Year 2</option>
-              <option value="3">Year 3</option>
-              <option value="4">Year 4</option>
-            </select>
-          </label>
-          <label className="form-field">Password
-            <input name="password" type="password" autoComplete="new-password" value={form.password} onChange={updateField} aria-invalid={Boolean(errors.password)} />
-            {errors.password && <small className="field-error">{errors.password}</small>}
-            <small className="field-hint">The API currently requires a non-empty password; no minimum length is enforced yet.</small>
-          </label>
-          <label className="form-field">Confirm password
-            <input name="confirmPassword" type="password" autoComplete="new-password" value={form.confirmPassword} onChange={updateField} aria-invalid={Boolean(errors.confirmPassword)} />
-            {errors.confirmPassword && <small className="field-error">{errors.confirmPassword}</small>}
-          </label>
-          {serverError && <p className="form-error" role="alert">{serverError}</p>}
-          <button className="button button-primary auth-submit" type="submit" disabled={busy}>{busy ? 'Creating account...' : 'Create account'}</button>
-        </form>
-        <p className="auth-switch">Already have an account? <Link to="/login">Log in</Link></p>
-        <Link className="auth-back" to="/">Back to home</Link>
-      </section>
-    </main>
+    <>
+      <Navbar />
+      <main className="auth">
+        <AuthAside />
+        <div className="auth-main">
+          <section className="auth-card rise">
+            <p className="eyebrow">Start with your project</p>
+            <h1>Create your account.</h1>
+            <p className="auth-intro">Set up your student account, then turn your brief into a validated roadmap.</p>
+            <form className="auth-form" onSubmit={submit} noValidate>
+              <label className="form-field">Full name
+                <input name="fullName" type="text" autoComplete="name" value={form.fullName} onChange={updateField} aria-invalid={Boolean(errors.fullName)} />
+                {errors.fullName && <small className="field-error">{errors.fullName}</small>}
+              </label>
+              <label className="form-field">Email
+                <input name="email" type="email" autoComplete="email" value={form.email} onChange={updateField} aria-invalid={Boolean(errors.email)} />
+                {errors.email && <small className="field-error">{errors.email}</small>}
+              </label>
+              <label className="form-field">Year of study <span className="optional">optional</span>
+                <select name="yearOfStudy" value={form.yearOfStudy} onChange={updateField}>
+                  <option value="">Choose a year</option>
+                  <option value="1">Year 1</option>
+                  <option value="2">Year 2</option>
+                  <option value="3">Year 3</option>
+                  <option value="4">Year 4</option>
+                </select>
+              </label>
+              <label className="form-field">Password
+                <input name="password" type="password" autoComplete="new-password" value={form.password} onChange={updateField} aria-invalid={Boolean(errors.password)} />
+                {errors.password && <small className="field-error">{errors.password}</small>}
+                <small className="hint">The API currently requires a non-empty password; no minimum length is enforced yet.</small>
+              </label>
+              <label className="form-field">Confirm password
+                <input name="confirmPassword" type="password" autoComplete="new-password" value={form.confirmPassword} onChange={updateField} aria-invalid={Boolean(errors.confirmPassword)} />
+                {errors.confirmPassword && <small className="field-error">{errors.confirmPassword}</small>}
+              </label>
+              {serverError && <p className="error-message" role="alert">{serverError}</p>}
+              <button className="button button-primary" type="submit" disabled={busy} style={{ width: '100%' }}>{busy ? 'Creating account…' : 'Create account'}</button>
+            </form>
+            <p className="auth-switch">Already have an account? <Link to="/login">Log in</Link></p>
+          </section>
+        </div>
+      </main>
+    </>
   );
 }

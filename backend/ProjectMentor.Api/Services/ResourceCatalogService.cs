@@ -1,0 +1,182 @@
+using Microsoft.EntityFrameworkCore;
+using ProjectMentor.Api.Contracts;
+using ProjectMentor.Data;
+
+namespace ProjectMentor.Api.Services;
+
+/// <summary>
+/// Component B (Resource Hub) business logic: searching, filtering, sorting and paginating the
+/// learning-resource catalog, plus admin CRUD. Kept separate from the controller so the query
+/// rules are unit-testable and reusable by the Resource agent's search tool.
+/// </summary>
+public sealed class ResourceCatalogService(ProjectMentorDbContext db)
+{
+    private const int MaxPageSize = 50;
+
+    private static readonly IReadOnlyDictionary<string, ResourceType> ResourceTypeLookup =
+        Enum.GetValues<ResourceType>().ToDictionary(x => x.ToString(), x => x, StringComparer.OrdinalIgnoreCase);
+
+    public async Task<PagedResponse<ResourceItemResponse>> SearchAsync(ResourceQuery query, CancellationToken cancellationToken)
+    {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+
+        var resources = db.Resources.AsNoTracking().Include(x => x.Tags).ThenInclude(x => x.Tag).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = $"%{query.Search.Trim()}%";
+            resources = resources.Where(x =>
+                EF.Functions.ILike(x.Title, term) ||
+                EF.Functions.ILike(x.Topic, term) ||
+                (x.Description != null && EF.Functions.ILike(x.Description, term)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Topic))
+            resources = resources.Where(x => x.Topic == query.Topic);
+
+        if (!string.IsNullOrWhiteSpace(query.Type) && ResourceTypeLookup.TryGetValue(query.Type.Trim(), out var type))
+            resources = resources.Where(x => x.ResourceType == type);
+
+        if (!string.IsNullOrWhiteSpace(query.Tag))
+            resources = resources.Where(x => x.Tags.Any(t => t.Tag.Name == query.Tag));
+
+        resources = ApplySort(resources, query.SortBy, query.SortDir);
+
+        var totalItems = await resources.CountAsync(cancellationToken);
+        var items = await resources
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => ToResponse(x))
+            .ToListAsync(cancellationToken);
+
+        var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
+        return new PagedResponse<ResourceItemResponse>(items, page, pageSize, totalItems, totalPages);
+    }
+
+    public async Task<ResourceItemResponse?> GetAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var resource = await db.Resources.AsNoTracking().Include(x => x.Tags).ThenInclude(x => x.Tag)
+            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return resource is null ? null : ToResponse(resource);
+    }
+
+    public async Task<ResourceFacetsResponse> GetFacetsAsync(CancellationToken cancellationToken)
+    {
+        var topics = await db.Resources.AsNoTracking().Select(x => x.Topic).Distinct().OrderBy(x => x).ToListAsync(cancellationToken);
+        var tags = await db.Tags.AsNoTracking().Select(x => x.Name).OrderBy(x => x).ToListAsync(cancellationToken);
+        var types = Enum.GetNames<ResourceType>().OrderBy(x => x).ToList();
+        return new ResourceFacetsResponse(topics, types, tags);
+    }
+
+    public async Task<ResourceItemResponse> CreateAsync(Guid actorId, CreateResourceRequest request, CancellationToken cancellationToken)
+    {
+        var resourceType = ParseType(request.ResourceType);
+        ValidateContent(request.Title, request.Url, request.Topic);
+
+        var resource = new Resource
+        {
+            Id = Guid.NewGuid(),
+            Title = request.Title.Trim(),
+            Url = request.Url.Trim(),
+            ResourceType = resourceType,
+            Topic = request.Topic.Trim(),
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            AddedById = actorId
+        };
+        db.Resources.Add(resource);
+        await AttachTagsAsync(resource, request.Tags, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return (await GetAsync(resource.Id, cancellationToken))!;
+    }
+
+    public async Task<ResourceItemResponse?> UpdateAsync(Guid id, UpdateResourceRequest request, CancellationToken cancellationToken)
+    {
+        var resource = await db.Resources.Include(x => x.Tags).SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (resource is null) return null;
+
+        resource.ResourceType = ParseType(request.ResourceType);
+        ValidateContent(request.Title, request.Url, request.Topic);
+        resource.Title = request.Title.Trim();
+        resource.Url = request.Url.Trim();
+        resource.Topic = request.Topic.Trim();
+        resource.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+
+        db.ResourceTags.RemoveRange(resource.Tags);
+        resource.Tags.Clear();
+        await AttachTagsAsync(resource, request.Tags, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(resource.Id, cancellationToken);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var resource = await db.Resources.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (resource is null) return false;
+
+        var attachedToMilestones = await db.MilestoneResources.AnyAsync(x => x.ResourceId == id, cancellationToken);
+        if (attachedToMilestones)
+            throw new InvalidOperationException("This resource is attached to a roadmap milestone and cannot be deleted.");
+
+        db.Resources.Remove(resource);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private static IQueryable<Resource> ApplySort(IQueryable<Resource> query, string? sortBy, string? sortDir)
+    {
+        var descending = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        return (sortBy?.Trim().ToLowerInvariant()) switch
+        {
+            "topic" => descending ? query.OrderByDescending(x => x.Topic) : query.OrderBy(x => x.Topic),
+            "type" => descending ? query.OrderByDescending(x => x.ResourceType) : query.OrderBy(x => x.ResourceType),
+            "createdat" => descending ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
+            _ => descending ? query.OrderByDescending(x => x.Title) : query.OrderBy(x => x.Title),
+        };
+    }
+
+    private async Task AttachTagsAsync(Resource resource, IReadOnlyList<string>? tagNames, CancellationToken cancellationToken)
+    {
+        if (tagNames is null) return;
+        var normalized = tagNames.Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (normalized.Count == 0) return;
+
+        var existing = await db.Tags.Where(x => normalized.Contains(x.Name)).ToListAsync(cancellationToken);
+        foreach (var name in normalized)
+        {
+            var tag = existing.SingleOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (tag is null)
+            {
+                tag = new Tag { Id = Guid.NewGuid(), Name = name };
+                db.Tags.Add(tag);
+                existing.Add(tag);
+            }
+            resource.Tags.Add(new ResourceTag { Id = Guid.NewGuid(), ResourceId = resource.Id, TagId = tag.Id });
+        }
+    }
+
+    private static ResourceType ParseType(string value) =>
+        ResourceTypeLookup.TryGetValue((value ?? string.Empty).Trim(), out var type)
+            ? type
+            : throw new ArgumentException($"Unknown resource type '{value}'. Valid values: {string.Join(", ", Enum.GetNames<ResourceType>())}.");
+
+    private static void ValidateContent(string title, string url, string topic)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("Title is required.");
+        if (string.IsNullOrWhiteSpace(topic)) throw new ArgumentException("Topic is required.");
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var parsed) ||
+            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+            throw new ArgumentException("A valid http(s) URL is required.");
+    }
+
+    private static ResourceItemResponse ToResponse(Resource resource) => new(
+        resource.Id,
+        resource.Title,
+        resource.Url,
+        resource.ResourceType.ToString(),
+        resource.Topic,
+        resource.Description,
+        resource.Tags.Select(t => t.Tag.Name).OrderBy(x => x).ToList());
+}

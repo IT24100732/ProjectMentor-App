@@ -8,6 +8,9 @@ using ProjectMentor.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Per-developer overrides (connection string, ADMIN_PASSWORD_HASH). Git-ignored.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 var jwtSecret = builder.Configuration["JWT_SECRET"]
     ?? Environment.GetEnvironmentVariable("JWT_SECRET")
     ?? "ProjectMentor-development-secret-change-before-production-1234567890";
@@ -35,6 +38,7 @@ builder.Services.AddDbContext<ProjectMentorDbContext>(options =>
     options.UseNpgsql(dataSource));
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<WorkflowService>();
+builder.Services.AddScoped<ResourceCatalogService>();
 builder.Services.AddScoped<PlannerAgent>();
 builder.Services.AddScoped<ResourceAgent>();
 builder.Services.AddScoped<AnalysisAgent>();
