@@ -1,7 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 import { useAuth } from '../auth/AuthContext';
 import { validateEmail } from '../auth/validation';
+
+function AuthAside() {
+  return (
+    <aside className="auth-aside band-dark">
+      <div className="hero-media" aria-hidden="true">
+        <img src="/hero-hands.png" alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
+      </div>
+      <div className="auth-aside-inner">
+        <p className="eyebrow">ProjectMentor</p>
+      </div>
+      <div>
+        <blockquote>“You don’t need to know everything today. You need to know the next thing.”</blockquote>
+        <p className="sig">— The Mentor</p>
+      </div>
+    </aside>
+  );
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -13,7 +31,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-    navigate(user.role === 'Admin' ? '/admin' : '/student', { replace: true });
+      navigate(user.role === 'Admin' ? '/admin' : '/student', { replace: true });
     }
   }, [isAuthenticated, navigate, user]);
 
@@ -39,8 +57,7 @@ export default function LoginPage() {
     setBusy(true); setServerError('');
     try {
       const session = await login({ email: form.email.trim(), password: form.password });
-      const destination = session.role === 'Admin' ? '/admin' : '/student';
-      navigate(destination, { replace: true });
+      navigate(session.role === 'Admin' ? '/admin' : '/student', { replace: true });
     } catch (error) {
       setServerError(error.code === 'API_UNREACHABLE'
         ? 'Cannot reach the server. Make sure the backend and database are running.'
@@ -53,26 +70,31 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-panel">
-        <p className="eyebrow">ProjectMentor access</p>
-        <h1>Log in</h1>
-        <p className="auth-intro">Return to your project workspace and keep your next milestone in view.</p>
-        <form className="auth-form" onSubmit={submit} noValidate>
-          <label className="form-field">Email
-            <input name="email" type="email" autoComplete="email" value={form.email} onChange={updateField} aria-invalid={Boolean(errors.email)} />
-            {errors.email && <small className="field-error">{errors.email}</small>}
-          </label>
-          <label className="form-field">Password
-            <input name="password" type="password" autoComplete="current-password" value={form.password} onChange={updateField} aria-invalid={Boolean(errors.password)} />
-            {errors.password && <small className="field-error">{errors.password}</small>}
-          </label>
-          {serverError && <p className="form-error" role="alert">{serverError}</p>}
-          <button className="button button-primary auth-submit" type="submit" disabled={busy}>{busy ? 'Logging in...' : 'Log in'}</button>
-        </form>
-        <p className="auth-switch">New to ProjectMentor? <Link to="/register">Create an account</Link></p>
-        <Link className="auth-back" to="/">Back to home</Link>
-      </section>
-    </main>
+    <>
+      <Navbar />
+      <main className="auth">
+        <AuthAside />
+        <div className="auth-main">
+          <section className="auth-card rise">
+            <p className="eyebrow">Welcome back</p>
+            <h1>Log in.</h1>
+            <p className="auth-intro">Return to your workspace and keep your next milestone in view.</p>
+            <form className="auth-form" onSubmit={submit} noValidate>
+              <label className="form-field">Email
+                <input name="email" type="email" autoComplete="email" value={form.email} onChange={updateField} aria-invalid={Boolean(errors.email)} />
+                {errors.email && <small className="field-error">{errors.email}</small>}
+              </label>
+              <label className="form-field">Password
+                <input name="password" type="password" autoComplete="current-password" value={form.password} onChange={updateField} aria-invalid={Boolean(errors.password)} />
+                {errors.password && <small className="field-error">{errors.password}</small>}
+              </label>
+              {serverError && <p className="error-message" role="alert">{serverError}</p>}
+              <button className="button button-primary" type="submit" disabled={busy} style={{ width: '100%' }}>{busy ? 'Logging in…' : 'Log in'}</button>
+            </form>
+            <p className="auth-switch">New to ProjectMentor? <Link to="/register">Create an account</Link></p>
+          </section>
+        </div>
+      </main>
+    </>
   );
 }

@@ -1,100 +1,184 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import Reveal from '../components/Reveal';
+
+const marquee = ['Plan', 'Validate', 'Approve', 'Track', 'Ship', 'Resources', 'Milestones', 'Four Agents'];
+
+const values = [
+  ['A real plan', 'Not a chat window — a structured intake that becomes an ordered roadmap sized to your deadline.'],
+  ['Right help, attached', 'Curated tutorials, docs and videos pinned to the exact milestone that needs them.'],
+  ['Nothing slips', 'Milestone status, overdue flags and reminders keep the deadline honest.'],
+  ['You approve it', 'The plan pauses for your decision — accept, or send it back for a revision.'],
+];
 
 const steps = [
-  ['01', 'Answer a few questions', 'Tell us your year, deadline, project type, time, and where you need the most help.'],
-  ['02', 'Get a validated roadmap', 'The agentic workflow turns your answers into a practical sequence with dates and resources.'],
-  ['03', 'Review before it goes live', 'You stay in control: accept the plan or ask for a revision before anything becomes active.'],
-  ['04', 'Keep moving', 'Track milestones, follow attached learning resources, and see what needs attention next.'],
+  ['01', 'Answer, don’t chat', 'A short structured intake — year, deadline, project type, hours, weak spots.'],
+  ['02', 'Agents build the plan', 'Four agents plan, attach resources, analyse scope and validate every milestone.'],
+  ['03', 'You approve it', 'Nothing goes live until you accept — or ask for a revision.'],
+  ['04', 'Ship it', 'Track milestones and follow the attached resources all the way to deployment.'],
 ];
 
-const painPoints = [
-  ['01', 'A project title', 'Start with a workable idea when the brief gives you nothing to hold on to.'],
-  ['02', 'The next step', 'Turn a vague project into an ordered plan instead of guessing what comes after what.'],
-  ['03', 'Diagrams that explain', 'Get guidance for ER, use-case, class, and sequence diagrams when the terminology gets dense.'],
-  ['04', 'Documents and presentations', 'Know what belongs in the report and how to shape the final presentation.'],
-  ['05', 'Deployment', 'Work through the practical steps that take a project beyond a laptop demo.'],
-  ['06', 'The parts you avoid', 'Spend more time building and less time circling the same uncertain task.'],
+const phases = [
+  ['01', 'Title', 'Choose or refine a project title — a workable idea to build on.', 'Week 1'],
+  ['02', 'Design', 'Diagrams, scope and structure before a line of code.', 'Weeks 1–2'],
+  ['03', 'Build', 'The core build, milestone by milestone, at your real pace.', 'Weeks 2–6'],
+  ['04', 'Documentation', 'Report outlines and the writing everyone leaves too late.', 'Weeks 5–7'],
+  ['05', 'Presentation', 'A presentation skeleton and a demo that actually lands.', 'Week 8'],
+  ['06', 'Deployment', 'A tailored checklist that takes it beyond a laptop demo.', 'Week 9'],
 ];
 
-function Header() {
-  const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuth();
-
+function Hero() {
   return (
-    <header className="site-header">
-      <div className="container nav">
-        <Link className="brand" to="/" aria-label="ProjectMentor home">
-          <span className="brand-mark">PM</span>
-          <span>ProjectMentor</span>
-        </Link>
-        <nav className="nav-links" aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#what-it-helps">What it helps with</a>
-        </nav>
-        <div className="nav-actions">
-          {isAuthenticated ? <><span className="session-indicator">Signed in as {user.fullName}</span><button className="button button-quiet" type="button" onClick={() => { logout(); navigate('/'); }}>Log out</button></> : <><Link className="button button-quiet" to="/demo">Workflow demo</Link><Link className="button button-quiet" to="/login">Log in</Link><Link className="button button-primary" to="/register">Get started</Link></>}
-        </div>
+    <section className="hero">
+      <div className="hero-media" aria-hidden="true">
+        <img src="/hero-hands.png" alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
       </div>
-    </header>
+      <div className="container hero-inner hero-rise">
+        <span className="script">your project, mentored</span>
+        <h1>Know what<br />comes next.</h1>
+        <p className="hero-caption">
+          <span className="tick">✦</span>
+          An agentic-AI platform that turns a blank project brief into a validated, personalised roadmap — from choosing a title to deploying the result.
+        </p>
+      </div>
+      <div className="scroll-cue" aria-hidden="true">Scroll<span /></div>
+    </section>
   );
 }
 
-function RoadmapPreview() {
+function Marquee() {
+  const items = [...marquee, ...marquee];
   return (
-    <div className="roadmap-preview" aria-label="Example ProjectMentor roadmap">
-      <div className="preview-top">
-        <span className="preview-kicker">Project brief / in progress</span>
-        <span className="preview-status">● Reviewed</span>
+    <div className="marquee" aria-hidden="true">
+      <div className="marquee-track">
+        {items.map((word, index) => (
+          <span key={index}>{word}<span className="tick">&nbsp;✦&nbsp;</span></span>
+        ))}
       </div>
-      <p className="preview-title">Campus project roadmap</p>
-      {['Choose and refine a title', 'Design the core experience', 'Build the first working version', 'Prepare the report and demo'].map((item, index) => (
-        <div className="preview-step" key={item}>
-          <span className="step-number">{String(index + 1).padStart(2, '0')}</span>
-          <div><strong>{item}</strong><small>{index < 2 ? 'Resource attached' : 'Next milestone'}</small></div>
-          <span className="step-check">{index < 2 ? '✓' : '→'}</span>
-        </div>
-      ))}
     </div>
   );
 }
 
-function HowItWorks() {
-  return (
-    <section className="section how" id="how-it-works">
-      <div className="container">
-        <div className="section-intro">
-          <div><p className="eyebrow">A clear sequence</p><h2>From blank brief to next step.</h2></div>
-          <p>ProjectMentor is not a chat window. It is a guided workflow that uses your answers, checks the plan, and gives you a chance to approve it.</p>
-        </div>
-        <div className="steps">
-          {steps.map(([number, title, copy]) => <article className="step" key={number}><span className="step-label">STEP {number}</span><h3>{title}</h3><p>{copy}</p></article>)}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PainPoints() {
-  return (
-    <section className="section" id="what-it-helps">
-      <div className="container">
-        <div className="section-intro">
-          <div><p className="eyebrow">The unglamorous work</p><h2>Useful when the project gets fuzzy.</h2></div>
-          <p>Most project stress is not one giant problem. It is a dozen small uncertainties that arrive in the wrong order. The platform gives each one a place.</p>
-        </div>
-        <div className="pain-grid">
-          {painPoints.map(([number, title, copy]) => <article className="pain" key={number}><span className="pain-index">{number}</span><h3>{title}</h3><p>{copy}</p></article>)}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Footer() {
-  return <footer className="site-footer"><div className="container footer-content"><span>ProjectMentor for undergraduate project work.</span><a href="#about">About</a></div></footer>;
-}
-
 export default function HomePage() {
-  return <div className="site-shell"><Header /><main><section className="hero"><div className="container hero-grid"><div className="hero-copy"><p className="eyebrow">For the student with a blank project brief</p><h1>Know what to do next.</h1><p>ProjectMentor helps undergraduates take a project from choosing a title to deploying the result, with a structured roadmap built around their actual deadline and experience.</p><div className="hero-actions"><Link className="button button-primary" to="/register">Create your roadmap <span aria-hidden="true">&nbsp;→</span></Link><Link className="button button-quiet" to="/login">Log in</Link></div><p className="hero-note">You review the plan before it becomes active.</p></div><RoadmapPreview /></div></section><HowItWorks /><PainPoints /><section className="cta-band"><div className="container cta-content"><div><p className="eyebrow">Start with the questions</p><h2>Make the next step visible.</h2><p>Give your project a little structure before the deadline gives it to you.</p></div><div className="cta-actions"><Link className="button button-primary" to="/register">Get started</Link><Link className="button button-quiet" to="/login">Log in</Link></div></div></section></main><Footer /></div>;
+  return (
+    <div className="app-shell">
+      <Navbar overlay />
+      <main>
+        <Hero />
+        <Marquee />
+
+        {/* Approach — editorial statement */}
+        <section className="section" id="approach">
+          <div className="container">
+            <div className="statement">
+              <Reveal className="lead">Not a chatbot.</Reveal>
+              <div>
+                <Reveal as="h2" delay={80}>We don’t leave you staring at a blank page.</Reveal>
+                <Reveal as="p" delay={160}>
+                  A chat box is the last thing a stuck student needs. ProjectMentor asks the right questions,
+                  reasons over the rules, and delegates real work to four specialised agents — each with one job,
+                  a defined contract and controlled tools.
+                </Reveal>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Value quad */}
+        <section className="section" style={{ paddingTop: 0 }}>
+          <div className="container">
+            <div className="quad">
+              {values.map(([title, copy], index) => (
+                <Reveal className="quad-item" key={title} delay={index * 90}>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="section" id="workflow">
+          <div className="container">
+            <Reveal className="section-head">
+              <p className="eyebrow">How it works</p>
+              <h2>From blank brief to next step, in four moves.</h2>
+            </Reveal>
+            <div className="quad">
+              {steps.map(([num, title, copy], index) => (
+                <Reveal className="quad-item" key={num} delay={index * 90}>
+                  <span className="no" style={{ fontFamily: 'var(--serif)', fontSize: '1.4rem', color: 'var(--accent-quiet)' }}>{num}</span>
+                  <h3 style={{ marginTop: 12 }}>{title}</h3>
+                  <p>{copy}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* The six phases — numbered list */}
+        <section className="section" id="phases" style={{ paddingTop: 0 }}>
+          <div className="container">
+            <Reveal className="section-head">
+              <p className="eyebrow">The roadmap</p>
+              <h2>Every project, six phases.</h2>
+              <p>The Planner agent sizes each phase to your real deadline and hours — then the Examiner checks it can actually ship.</p>
+            </Reveal>
+            <div className="numbered">
+              {phases.map(([no, title, copy, meta], index) => (
+                <Reveal className="numbered-row" key={no} delay={index * 60}>
+                  <span className="no">{no}</span>
+                  <div>
+                    <h3>{title}</h3>
+                    <p>{copy}</p>
+                  </div>
+                  <span className="meta">{meta}</span>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Mentor & Examiner */}
+        <section className="section band-dark" id="duo">
+          <div className="container">
+            <Reveal className="section-head">
+              <p className="eyebrow">Two voices, one goal</p>
+              <h2>Every good mentor is a little bit of both.</h2>
+              <p>Encouragement gets you started. Standards get you finished. ProjectMentor runs on both at once.</p>
+            </Reveal>
+            <div className="duo">
+              <Reveal className="duo-card nice">
+                <span className="duo-tag">The Mentor</span>
+                <h3>Warm, patient, always a next step.</h3>
+                <p>Breaks the mountain into stairs. Attaches the exact tutorial you need. Never makes you feel behind for asking.</p>
+                <blockquote>“You don’t need to know everything today. You need to know the next thing. Here it is.”</blockquote>
+              </Reveal>
+              <Reveal className="duo-card bad" delay={120}>
+                <span className="duo-tag">The Examiner</span>
+                <h3>Blunt, exacting, allergic to excuses.</h3>
+                <p>Checks your plan against the deadline and the rules. Flags the phase you’re quietly avoiding. Won’t sign off on a roadmap that can’t ship.</p>
+                <blockquote>“Your deadline doesn’t care how busy you were. Milestone three is late. Fix it.”</blockquote>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="section band-dark" style={{ paddingTop: 0 }}>
+          <div className="container cta">
+            <Reveal as="h2">Make the next step visible.</Reveal>
+            <Reveal as="p" delay={100}>Give your project a little structure before the deadline gives it to you. You review the plan before anything becomes active.</Reveal>
+            <Reveal className="hero-actions" delay={200}>
+              <Link className="button button-primary" to="/register">Get started</Link>
+              <Link className="button button-gold" to="/login">Log in</Link>
+            </Reveal>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
 }
