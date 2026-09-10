@@ -6,33 +6,56 @@ namespace ProjectMentor.Data;
 public static class SeedData
 {
     private static readonly Guid AdminId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid DemoStudentId = Guid.Parse("11111111-1111-1111-1111-111111111112");
+    private const string DemoStudentPasswordHash = "$2a$11$bpbBzB2NsZWWOWss5h1g9eTZIIbjao.eTaUF21wJ/Ik689uaBHrj6";
 
     public static async Task InitializeAsync(ProjectMentorDbContext db, IConfiguration configuration, CancellationToken cancellationToken = default)
     {
-        if (await db.Users.AnyAsync(x => x.Role == UserRole.Admin, cancellationToken))
-            return;
-
-        var passwordHash = configuration["ADMIN_PASSWORD_HASH"] ?? Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH");
-        if (string.IsNullOrWhiteSpace(passwordHash))
-            throw new InvalidOperationException("ADMIN_PASSWORD_HASH must be configured before seeding the admin user.");
-
         var now = DateTimeOffset.UtcNow;
-        db.Users.Add(new User
+        var admin = await db.Users.SingleOrDefaultAsync(x => x.Email == "admin@projectmentor.local", cancellationToken);
+        if (admin is null)
         {
-            Id = AdminId,
-            Email = "admin@projectmentor.local",
-            PasswordHash = passwordHash,
-            FullName = "System Administrator",
-            Role = UserRole.Admin,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now
-        });
+            var passwordHash = configuration["ADMIN_PASSWORD_HASH"] ?? Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH");
+            if (string.IsNullOrWhiteSpace(passwordHash))
+                throw new InvalidOperationException("ADMIN_PASSWORD_HASH must be configured before seeding the admin user.");
 
-        db.Questions.AddRange(CreateQuestions(now));
-        db.Resources.AddRange(CreateResources(now));
-        db.GuidanceTemplates.AddRange(CreateTemplates(now));
-        await db.SaveChangesAsync(cancellationToken);
+            admin = new User
+            {
+                Id = AdminId, Email = "admin@projectmentor.local", PasswordHash = passwordHash,
+                FullName = "System Administrator", Role = UserRole.Admin, IsActive = true,
+                CreatedAt = now, UpdatedAt = now
+            };
+            db.Users.Add(admin);
+        }
+
+        var demoStudent = await db.Users.SingleOrDefaultAsync(x => x.Email == "react.demo@projectmentor.local", cancellationToken);
+        if (demoStudent is null)
+        {
+            demoStudent = new User
+            {
+                Id = DemoStudentId, Email = "react.demo@projectmentor.local", PasswordHash = DemoStudentPasswordHash,
+                FullName = "React Demo Student", Role = UserRole.Student, YearOfStudy = 2, IsActive = true,
+                CreatedAt = now, UpdatedAt = now
+            };
+            db.Users.Add(demoStudent);
+        }
+        else
+        {
+            demoStudent.PasswordHash = DemoStudentPasswordHash;
+            demoStudent.FullName = "React Demo Student";
+            demoStudent.Role = UserRole.Student;
+            demoStudent.YearOfStudy = 2;
+            demoStudent.IsActive = true;
+        }
+
+        if (!await db.Questions.AnyAsync(cancellationToken))
+            db.Questions.AddRange(CreateQuestions(now));
+        if (!await db.Resources.AnyAsync(cancellationToken))
+            db.Resources.AddRange(CreateResources(now));
+        if (!await db.GuidanceTemplates.AnyAsync(cancellationToken))
+            db.GuidanceTemplates.AddRange(CreateTemplates(now));
+        if (db.ChangeTracker.HasChanges())
+            await db.SaveChangesAsync(cancellationToken);
     }
 
     private static List<Question> CreateQuestions(DateTimeOffset now)
