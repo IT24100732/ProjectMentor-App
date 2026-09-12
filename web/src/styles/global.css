@@ -225,6 +225,15 @@ p { margin: 0; }
 .milestone small { display: block; margin-top: 5px; color: var(--fg-faint); }
 .milestone-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; color: var(--fg-faint); font-size: 0.78rem; text-align: right; white-space: nowrap; }
 
+/* --- Roadmap list --- */
+.roadmap-list { display: grid; gap: 16px; margin-top: 28px; }
+.roadmap-card { display: block; text-decoration: none; transition: transform 200ms ease, box-shadow 200ms ease; cursor: pointer; }
+.roadmap-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.roadmap-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.roadmap-card-title { font-family: var(--serif); font-weight: 600; font-size: 1.35rem; margin: 0; }
+.roadmap-card-foot { display: flex; align-items: center; gap: 24px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.roadmap-card-meta { color: var(--fg-faint); font-size: 0.78rem; letter-spacing: 0.04em; }
+
 /* --- Resource hub --- */
 .resource-toolbar { margin-top: 26px; }
 .resource-filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 16px; align-items: end; }

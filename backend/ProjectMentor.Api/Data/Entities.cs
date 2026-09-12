@@ -58,6 +58,7 @@ public sealed class Question : AuditedEntity
 public sealed class RoadmapRequest : AuditedEntity
 {
     public Guid StudentId { get; set; }
+    public string? Title { get; set; }
     public RoadmapRequestStatus Status { get; set; }
     public User Student { get; set; } = null!;
     public ICollection<QuestionAnswer> Answers { get; set; } = [];

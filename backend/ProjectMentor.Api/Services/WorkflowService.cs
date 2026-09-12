@@ -28,7 +28,7 @@ public sealed class WorkflowService(
             throw new ArgumentException("Year, project type, and hours per week are invalid.");
 
         var now = DateTimeOffset.UtcNow;
-        var request = new RoadmapRequest { Id = Guid.NewGuid(), StudentId = studentId, Status = RoadmapRequestStatus.Planning };
+        var request = new RoadmapRequest { Id = Guid.NewGuid(), StudentId = studentId, Status = RoadmapRequestStatus.Planning, Title = intake.Title };
         db.RoadmapRequests.Add(request);
         db.QuestionAnswers.AddRange(
             Answer(request.Id, QuestionIds["year_of_study"], intake.Year),
@@ -109,6 +109,13 @@ public sealed class WorkflowService(
             .Where(x => x.StudentId == studentId)
             .OrderByDescending(x => x.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<RoadmapRequest>> ListAsync(Guid studentId, CancellationToken cancellationToken) =>
+        await db.RoadmapRequests
+            .Include(x => x.Answers).ThenInclude(x => x.Question)
+            .Where(x => x.StudentId == studentId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
 
     private static QuestionAnswer Answer<T>(Guid requestId, Guid questionId, T value) => new()
     {
