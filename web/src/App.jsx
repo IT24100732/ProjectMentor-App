@@ -4,7 +4,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FeaturePlaceholderPage from './pages/FeaturePlaceholderPage';
 import EndToEndPage from './pages/EndToEndPage';
-import StudentHomePage from './pages/StudentHomePage';
+import StudentIntakePage from './pages/StudentIntakePage';
+import StudentRoadmapsPage from './pages/StudentRoadmapsPage';
+import StudentRoadmapDetailPage from './pages/StudentRoadmapDetailPage';
 import ResourceHubPage from './pages/ResourceHubPage';
 import SiteLayout from './components/SiteLayout';
 import { RequireAuth, RequireRole } from './auth/RouteGuards';
@@ -24,7 +26,12 @@ export default function App() {
           {/* Resource Hub (Component B) is shared: students browse, admins manage. */}
           <Route path="/resources" element={<ResourceHubPage />} />
           <Route element={<RequireRole role="Student" />}>
-            <Route path="/student" element={<StudentHomePage />} />
+            {/* Intake: start a brand-new roadmap */}
+            <Route path="/student" element={<StudentIntakePage />} />
+            {/* List: all of this student's roadmap requests */}
+            <Route path="/student/roadmaps" element={<StudentRoadmapsPage />} />
+            {/* Detail: one specific roadmap request, by id */}
+            <Route path="/student/roadmaps/:id" element={<StudentRoadmapDetailPage />} />
             <Route path="/planning" element={<FeaturePlaceholderPage eyebrow="Planning workspace" title="Build your roadmap" description="The planning workspace will turn an approved intake into milestones, dates, and attached resources." />} />
             <Route path="/progress" element={<FeaturePlaceholderPage eyebrow="Progress tracking" title="See what is moving" description="Progress tracking will bring milestone status, overdue work, and reminders into one view." />} />
             <Route path="/guidance" element={<FeaturePlaceholderPage eyebrow="Guidance library" title="Finish with confidence" description="The guidance library will provide report, presentation, and deployment checklists." />} />

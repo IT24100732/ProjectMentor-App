@@ -41,6 +41,10 @@ export function getCurrentRoadmapRequest(token) {
   return request('/api/roadmap-requests/current', { headers: { Authorization: `Bearer ${token}` } });
 }
 
+export function listRoadmapRequests(token) {
+  return request('/api/roadmap-requests', { headers: { Authorization: `Bearer ${token}` } });
+}
+
 export function acceptRoadmap(token, id) {
   return request(`/api/roadmaps/${id}/accept`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ comment: 'Accepted from React demo' }) });
 }

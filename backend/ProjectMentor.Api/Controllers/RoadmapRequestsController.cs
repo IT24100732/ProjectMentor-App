@@ -40,6 +40,22 @@ public sealed class RoadmapRequestsController(WorkflowService workflow) : Contro
             : RoadmapMapper.Map(request, roadmap));
     }
 
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<RoadmapRequestSummary>>> List(CancellationToken cancellationToken)
+    {
+        var requests = await workflow.ListAsync(User.GetUserId(), cancellationToken);
+        var summaries = requests.Select(r =>
+        {
+            var projectType = r.Answers.FirstOrDefault(a => a.Question.Code == "project_type")?.AnswerValue.RootElement.GetString() ?? "";
+            var deadline = r.Answers.FirstOrDefault(a => a.Question.Code == "deadline")?.AnswerValue.RootElement.GetString() ?? "";
+            var displayTitle = !string.IsNullOrWhiteSpace(r.Title)
+                ? r.Title
+                : $"{projectType} project — due {deadline}";
+            return new RoadmapRequestSummary(r.Id, displayTitle, r.Status.ToString(), projectType, DateOnly.TryParse(deadline, out var d) ? d : DateOnly.MinValue, r.CreatedAt);
+        }).ToList();
+        return Ok(summaries);
+    }
+
     [HttpGet("current")]
     public async Task<ActionResult<RoadmapResponse>> GetCurrent(CancellationToken cancellationToken)
     {

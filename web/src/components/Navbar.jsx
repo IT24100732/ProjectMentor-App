@@ -38,7 +38,7 @@ export default function Navbar({ overlay = false }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, [overlay]);
 
-  const dashboard = isAuthenticated ? (user.role === 'Admin' ? '/admin' : '/student') : '/login';
+  const dashboard = isAuthenticated ? (user.role === 'Admin' ? '/admin' : '/student/roadmaps') : '/login';
 
   function signOut() {
     logout();
@@ -48,7 +48,7 @@ export default function Navbar({ overlay = false }) {
   const links = isAuthenticated
     ? (user.role === 'Admin'
         ? [['/admin', 'Console'], ['/resources', 'Resources']]
-        : [['/student', 'Roadmap'], ['/resources', 'Resources'], ['/progress', 'Progress'], ['/guidance', 'Guidance']])
+        : [['/student/roadmaps', 'Roadmaps'], ['/resources', 'Resources'], ['/progress', 'Progress'], ['/guidance', 'Guidance']])
     : marketingLinks;
 
   return (
