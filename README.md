@@ -37,3 +37,56 @@ This is an ongoing project. Here are the parts that have already been covered an
 - **Quick Approvals:** Ability to review generated roadmaps and accept or request revisions directly from the mobile app.
 
 ---
+
+## 🚧 Upcoming Features / Ongoing Work
+
+- **Interactive Planning Workspace:** Turning an approved intake into an actionable workspace with drag-and-drop milestones.
+- **Progress Tracking & Analytics:** Real-time milestone status, overdue notifications, and overall completion tracking.
+- **Guidance Library:** Built-in templates for project reports, presentations, and deployment checklists.
+- **Admin Dashboard:** Administrative tools for managing the resource catalog and monitoring system usage.
+
+---
+
+## 🛠️ Getting Started (Local Development)
+
+### Prerequisites
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Node.js & npm](https://nodejs.org/)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop)
+
+### 1. Database Setup
+Start the PostgreSQL database using Docker Compose:
+```bash
+docker-compose up -d
+```
+
+### 2. Backend (Web API)
+Navigate to the backend directory, apply migrations, and run the API:
+```bash
+cd backend/ProjectMentor.Api
+dotnet ef database update
+dotnet run
+```
+*The API will start and seed initial data automatically in the development environment. Swagger UI is available for testing endpoints.*
+
+### 3. Web Frontend
+Open a new terminal and start the Vite development server:
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### 4. Mobile App
+Ensure you have an emulator running or a device connected, then launch the Flutter app:
+```bash
+cd mobile
+flutter pub get
+flutter run
+```
+
+---
+
+## 📄 License
+*To be determined.*
