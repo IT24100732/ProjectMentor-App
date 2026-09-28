@@ -1,33 +1,95 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { acceptRoadmap, getRoadmapRequest, requestRevision } from '../api/projectMentorApi';
+import { acceptRoadmap, downloadRoadmapReport, getRoadmapRequest, requestRevision, updateMilestoneStatus } from '../api/projectMentorApi';
 import { useAuth } from '../auth/AuthContext';
 
-const showAgentModeIndicator = true;
+const STATUSES = [
+  ['NotStarted', 'Not started'],
+  ['InProgress', 'In progress'],
+  ['Blocked', 'Blocked'],
+  ['Done', 'Done'],
+];
+const STATUS_CLASS = { NotStarted: 'todo', InProgress: 'doing', Blocked: 'blocked', Done: 'done' };
 
 function getErrorMessage(error) {
   if (error.code === 'API_UNREACHABLE') return error.message;
   return error.message || 'Something went wrong. Please try again.';
 }
 
-function MilestoneList({ milestones }) {
+function isOverdue(m) {
+  return m.status !== 'Done' && m.dueDate && new Date(m.dueDate) < new Date(new Date().toDateString());
+}
+
+// Read-only milestone list (used while the roadmap is still awaiting approval).
+function MilestonePreview({ milestones }) {
   return (
     <ol className="milestones">
-      {milestones.map(milestone => (
-        <li className="milestone" key={milestone.id}>
+      {milestones.map(m => (
+        <li className="milestone" key={m.id}>
           <div>
-            <span className="phase">{milestone.phase}</span>
-            <h4>{milestone.title}</h4>
-            <small>{milestone.description}</small>
+            <span className="phase">{m.phase}</span>
+            <h4>{m.title}</h4>
+            <small>{m.description}</small>
           </div>
           <div className="milestone-meta">
-            <span>{milestone.dueDate}</span>
-            <span>{milestone.status}</span>
-            <span>{milestone.resources?.length ? '● resource attached' : '○ no resource'}</span>
+            <span>{m.dueDate}</span>
+            <span>{m.status}</span>
+            <span>{m.resources?.length ? '● resource attached' : '○ no resource'}</span>
           </div>
         </li>
       ))}
     </ol>
+  );
+}
+
+// Interactive tracker (used once the roadmap is accepted).
+function ProgressTracker({ milestones, onSetStatus, busyId }) {
+  const total = milestones.length;
+  const done = milestones.filter(m => m.status === 'Done').length;
+  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+  const overdue = milestones.filter(isOverdue).length;
+
+  return (
+    <div className="tracker">
+      <div className="tracker-head">
+        <div>
+          <span className="tracker-count">{done}/{total} milestones</span>
+          {overdue > 0 && <span className="tracker-overdue">{overdue} overdue</span>}
+        </div>
+        <span className="tracker-pct">{percent}%</span>
+      </div>
+      <div className="progress-bar"><span style={{ width: `${percent}%` }} /></div>
+
+      <ol className="track-list">
+        {milestones.map(m => (
+          <li className={`track-item ${STATUS_CLASS[m.status] || 'todo'}${isOverdue(m) ? ' overdue' : ''}`} key={m.id}>
+            <span className="track-node" aria-hidden="true" />
+            <div className="track-body">
+              <div className="track-top">
+                <span className="phase">{m.phase}</span>
+                {isOverdue(m) && <span className="overdue-badge">Overdue</span>}
+                <span className="track-due">Due {m.dueDate}</span>
+              </div>
+              <h4>{m.title}</h4>
+              <small>{m.description}</small>
+              <div className="status-picker" role="group" aria-label={`Status for ${m.title}`}>
+                {STATUSES.map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`status-opt ${STATUS_CLASS[value]}${m.status === value ? ' active' : ''}`}
+                    disabled={busyId === m.id}
+                    onClick={() => onSetStatus(m.id, value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -38,28 +100,23 @@ export default function StudentRoadmapDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyMilestone, setBusyMilestone] = useState('');
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   async function loadRoadmap() {
     try {
-      const data = await getRoadmapRequest(token, id);
-      setWorkflow(data);
+      setWorkflow(await getRoadmapRequest(token, id));
     } catch (exception) {
-      if (exception.status === 404) {
-        setNotFound(true);
-      } else {
-        setError(getErrorMessage(exception));
-      }
+      if (exception.status === 404) setNotFound(true);
+      else setError(getErrorMessage(exception));
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadRoadmap();
-  }, [token, id]);
+  useEffect(() => { loadRoadmap(); }, [token, id]);
 
-  // Poll every 1.5 s while the workflow is still processing
   useEffect(() => {
     if (!workflow || !['Submitted', 'Planning'].includes(workflow.requestStatus)) return undefined;
     const timer = window.setInterval(loadRoadmap, 1500);
@@ -67,12 +124,9 @@ export default function StudentRoadmapDetailPage() {
   }, [workflow, token, id]);
 
   async function decide(action) {
-    setBusy(true);
-    setError('');
+    setBusy(true); setError('');
     try {
-      const updated = action === 'accept'
-        ? await acceptRoadmap(token, workflow.id)
-        : await requestRevision(token, workflow.id);
+      const updated = action === 'accept' ? await acceptRoadmap(token, workflow.id) : await requestRevision(token, workflow.id);
       setWorkflow(updated);
     } catch (exception) {
       setError(getErrorMessage(exception));
@@ -81,27 +135,43 @@ export default function StudentRoadmapDetailPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="page">
-        <p className="eyebrow">Student workspace</p>
-        <h1>Loading roadmap…</h1>
-      </main>
-    );
+  async function download() {
+    setDownloading(true); setError('');
+    try {
+      const { blob, filename } = await downloadRoadmapReport(token, id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (exception) {
+      setError(getErrorMessage(exception));
+    } finally {
+      setDownloading(false);
+    }
   }
 
-  if (notFound) {
-    return (
-      <main className="page">
-        <p className="eyebrow">Student workspace</p>
-        <h1>Roadmap not found</h1>
-        <p className="page-lede">This roadmap doesn't exist or doesn't belong to your account.</p>
-        <div className="hero-actions" style={{ marginTop: '24px' }}>
-          <Link to="/student/roadmaps" className="button button-primary">Back to your roadmaps</Link>
-        </div>
-      </main>
-    );
+  async function setStatus(milestoneId, status) {
+    setBusyMilestone(milestoneId); setError('');
+    try {
+      const updated = await updateMilestoneStatus(token, milestoneId, status);
+      setWorkflow(w => ({ ...w, milestones: w.milestones.map(m => (m.id === milestoneId ? updated : m)) }));
+    } catch (exception) {
+      setError(getErrorMessage(exception));
+    } finally {
+      setBusyMilestone('');
+    }
   }
+
+  if (loading) return <main className="page"><p className="eyebrow">Student workspace</p><h1>Loading roadmap…</h1></main>;
+  if (notFound) return (
+    <main className="page">
+      <p className="eyebrow">Student workspace</p>
+      <h1>Roadmap not found</h1>
+      <p className="page-lede">This roadmap doesn't exist or doesn't belong to your account.</p>
+      <div className="hero-actions" style={{ marginTop: '24px' }}><Link to="/student/roadmaps" className="button button-primary">Back to your roadmaps</Link></div>
+    </main>
+  );
 
   const isProcessing = workflow && ['Submitted', 'Planning'].includes(workflow.requestStatus);
   const isAwaitingApproval = workflow?.status === 'PendingApproval';
@@ -111,13 +181,13 @@ export default function StudentRoadmapDetailPage() {
     <main className="page">
       <div className="page-head">
         <div>
-          <p className="eyebrow">Student workspace</p>
-          <h1>Roadmap detail</h1>
+          <p className="eyebrow">{isActive ? 'Progress tracker' : 'Student workspace'}</p>
+          <h1>{workflow?.title || 'Roadmap detail'}</h1>
         </div>
-        <Link to="/student/roadmaps" className="button button-quiet">← All roadmaps</Link>
+        <Link to="/student/roadmaps" className="button button-quiet button-small">← All roadmaps</Link>
       </div>
       <p className="page-lede">
-        Review your generated plan below. Once you're happy, accept it to lock in your milestones.
+        {isActive ? 'Track your milestones — set each one In progress, Blocked or Done. Overdue items are flagged.' : "Review your generated plan below. Once you're happy, accept it to lock in your milestones."}
       </p>
 
       {isProcessing && (
@@ -133,8 +203,20 @@ export default function StudentRoadmapDetailPage() {
             <span className="chip">Request · {workflow.requestStatus}</span>
             <span className="chip gold">Roadmap · {workflow.status}</span>
           </div>
-          {showAgentModeIndicator && <p className="note">Agents: rule-based (Phase 1) — LLM reasoning arrives in a later phase.</p>}
-          <MilestoneList milestones={workflow.milestones} />
+          <p style={{ margin: '10px 0 0' }}><Link className="resource-link" to={`/student/roadmaps/${id}/workflow`}>See how the AI built this →</Link></p>
+
+          {isActive
+            ? <ProgressTracker milestones={workflow.milestones} onSetStatus={setStatus} busyId={busyMilestone} />
+            : <MilestonePreview milestones={workflow.milestones} />}
+
+          {isActive && (
+            <div className="hero-actions">
+              <button className="button button-primary" disabled={downloading} onClick={download}>
+                {downloading ? 'Preparing report…' : '⬇ Download project report'}
+              </button>
+            </div>
+          )}
+
           {isAwaitingApproval && (
             <div className="hero-actions">
               <button className="button button-primary" disabled={busy} onClick={() => decide('accept')}>Accept roadmap</button>
@@ -146,9 +228,7 @@ export default function StudentRoadmapDetailPage() {
 
       {!isProcessing && !isAwaitingApproval && !isActive && workflow && (
         <section className="panel">
-          <div className="status-row">
-            <span className="chip">Request · {workflow.requestStatus}</span>
-          </div>
+          <div className="status-row"><span className="chip">Request · {workflow.requestStatus}</span></div>
           <p className="note" style={{ marginTop: '16px' }}>This roadmap request has status: {workflow.requestStatus}.</p>
         </section>
       )}
