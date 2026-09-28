@@ -1,0 +1,98 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { suggestIdeas } from '../api/projectMentorApi';
+import { useAuth } from '../auth/AuthContext';
+
+function getErrorMessage(error) {
+  if (error.code === 'API_UNREACHABLE') return error.message;
+  return error.message || 'Something went wrong. Please try again.';
+}
+
+export default function StudentIdeasPage() {
+  const { id } = useParams();
+  const { token } = useAuth();
+  const navigate = useNavigate();
+
+  const [ideas, setIdeas] = useState([]);
+  const [seen, setSeen] = useState([]);           // titles already shown → reshuffle excludes them
+  const [available, setAvailable] = useState(true);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [picking, setPicking] = useState('');     // title currently being planned
+  const [error, setError] = useState('');
+
+  const fetchIdeas = useCallback(async (exclude) => {
+    setLoading(true); setError('');
+    try {
+      const data = await suggestIdeas(token, id, exclude);
+      setAvailable(data.available);
+      setMessage(data.message || '');
+      setIdeas(data.ideas || []);
+      setSeen(prev => [...prev, ...(data.ideas || []).map(i => i.title)]);
+    } catch (exception) {
+      setError(getErrorMessage(exception));
+    } finally {
+      setLoading(false);
+    }
+  }, [token, id]);
+
+  useEffect(() => { fetchIdeas([]); }, [fetchIdeas]);
+
+  function pick(idea) {
+    // Carry the chosen idea into the mentor chat, then planning happens after the conversation.
+    navigate(`/student/roadmaps/${id}/chat`, { state: { title: idea.title, summary: idea.summary } });
+  }
+
+  return (
+    <main className="page page-wide">
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Idea Agent · pick a project</p>
+          <h1>Ideas made for you.</h1>
+        </div>
+        <Link className="button button-quiet button-small" to="/student">← Change answers</Link>
+      </div>
+      <p className="page-lede">The AI proposed these based on your year, project type, deadline and weekly hours. Pick one to build its roadmap — or ask for a fresh set.</p>
+
+      {error && <p className="error-message" role="alert">{error}</p>}
+
+      {!available && !loading && (
+        <section className="panel">
+          <h2>AI suggestions aren’t available</h2>
+          <p className="note">{message || 'The AI key isn’t configured.'}</p>
+          <Link className="button button-primary button-small" to="/student">Enter my own idea instead →</Link>
+        </section>
+      )}
+
+      {loading && (
+        <section className="panel"><p>The Idea Agent is thinking… this takes a few seconds.</p></section>
+      )}
+
+      {available && !loading && ideas.length > 0 && (
+        <>
+          <div className="idea-grid">
+            {ideas.map((idea) => (
+              <article className="idea-card" key={idea.title}>
+                <div className="idea-card-head">
+                  <span className="idea-diff">{idea.difficulty}</span>
+                </div>
+                <h3>{idea.title}</h3>
+                <p className="idea-summary">{idea.summary}</p>
+                {idea.whyItFits && <p className="idea-why"><strong>Why it fits:</strong> {idea.whyItFits}</p>}
+                {idea.techStack?.length > 0 && (
+                  <div className="idea-tech">{idea.techStack.map(t => <span className="idea-tech-chip" key={t}>{t}</span>)}</div>
+                )}
+                <button className="button button-primary button-small idea-pick" disabled={Boolean(picking)} onClick={() => pick(idea)}>
+                  {picking === idea.title ? 'Building roadmap…' : 'Pick this project'}
+                </button>
+              </article>
+            ))}
+          </div>
+          <div className="idea-actions">
+            <button className="button button-gold" disabled={Boolean(picking)} onClick={() => fetchIdeas(seen)}>↻ Show me other ideas</button>
+          </div>
+        </>
+      )}
+    </main>
+  );
+}
