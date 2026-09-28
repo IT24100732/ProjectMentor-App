@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { listRoadmapRequests } from '../api/projectMentorApi';
+import { deleteRoadmapRequest, listRoadmapRequests, renameRoadmapRequest } from '../api/projectMentorApi';
 import { useAuth } from '../auth/AuthContext';
 
 function getErrorMessage(error) {
@@ -9,37 +9,63 @@ function getErrorMessage(error) {
 }
 
 function statusChipClass(requestStatus) {
-  if (requestStatus === 'Accepted') return 'chip gold';
-  return 'chip';
+  return requestStatus === 'Accepted' ? 'chip gold' : 'chip';
 }
 
 export default function StudentRoadmapsPage() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [roadmaps, setRoadmaps] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [busyId, setBusyId] = useState('');
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await listRoadmapRequests(token);
-        setRoadmaps(data);
-      } catch (exception) {
-        setError(getErrorMessage(exception));
-      } finally {
-        setLoading(false);
-      }
+  async function load() {
+    try {
+      setRoadmaps(await listRoadmapRequests(token));
+    } catch (exception) {
+      setError(getErrorMessage(exception));
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, [token]);
+  }
+
+  useEffect(() => { load(); }, [token]);
+
+  function startEdit(roadmap) {
+    setEditingId(roadmap.id);
+    setEditTitle(roadmap.displayTitle);
+  }
+
+  async function saveEdit(id) {
+    setBusyId(id); setError('');
+    try {
+      await renameRoadmapRequest(token, id, editTitle.trim() || null);
+      setEditingId('');
+      await load();
+    } catch (exception) {
+      setError(getErrorMessage(exception));
+    } finally {
+      setBusyId('');
+    }
+  }
+
+  async function remove(roadmap) {
+    if (!window.confirm(`Delete "${roadmap.displayTitle}"? This permanently removes the roadmap and its progress.`)) return;
+    setBusyId(roadmap.id); setError('');
+    try {
+      await deleteRoadmapRequest(token, roadmap.id);
+      setRoadmaps(list => list.filter(r => r.id !== roadmap.id));
+    } catch (exception) {
+      setError(getErrorMessage(exception));
+    } finally {
+      setBusyId('');
+    }
+  }
 
   if (loading) {
-    return (
-      <main className="page">
-        <p className="eyebrow">Student workspace</p>
-        <h1>Loading your roadmaps…</h1>
-      </main>
-    );
+    return <main className="page"><p className="eyebrow">Student workspace</p><h1>Loading your roadmaps…</h1></main>;
   }
 
   return (
@@ -51,9 +77,7 @@ export default function StudentRoadmapsPage() {
         </div>
         <Link to="/student" className="button button-primary">Start a new roadmap</Link>
       </div>
-      <p className="page-lede">
-        Each roadmap is a separate, independent project plan. Click a card to view milestones and manage approval.
-      </p>
+      <p className="page-lede">Each roadmap is a separate, independent project. Open one to track progress — or rename and delete from here.</p>
 
       {error && <p className="error-message" role="alert">{error}</p>}
 
@@ -70,24 +94,41 @@ export default function StudentRoadmapsPage() {
       {roadmaps?.length > 0 && (
         <div className="roadmap-list">
           {roadmaps.map(roadmap => (
-            <Link
-              key={roadmap.id}
-              to={`/student/roadmaps/${roadmap.id}`}
-              className="panel roadmap-card"
-            >
+            <article className="panel roadmap-card" key={roadmap.id}>
               <div className="roadmap-card-head">
-                <h3 className="roadmap-card-title">{roadmap.displayTitle}</h3>
+                {editingId === roadmap.id
+                  ? <input className="roadmap-rename" value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus />
+                  : <Link to={`/student/roadmaps/${roadmap.id}`} className="roadmap-card-title">{roadmap.displayTitle}</Link>}
                 <span className={statusChipClass(roadmap.requestStatus)}>{roadmap.requestStatus}</span>
               </div>
+
+              {roadmap.roadmapStatus === 'Accepted' && roadmap.milestoneCount > 0 && (
+                <div className="card-progress">
+                  <div className="progress-bar"><span style={{ width: `${roadmap.progressPercent}%` }} /></div>
+                  <div className="card-progress-meta">
+                    <span>{roadmap.doneCount}/{roadmap.milestoneCount} done · {roadmap.progressPercent}%</span>
+                    {roadmap.overdueCount > 0 && <span className="tracker-overdue">{roadmap.overdueCount} overdue</span>}
+                  </div>
+                </div>
+              )}
+
               <div className="roadmap-card-foot">
-                <span className="roadmap-card-meta">
-                  Due {roadmap.deadline}
-                </span>
-                <span className="roadmap-card-meta">
-                  Created {new Date(roadmap.createdAt).toLocaleDateString()}
+                <span className="roadmap-card-meta">Due {roadmap.deadline} · created {new Date(roadmap.createdAt).toLocaleDateString()}</span>
+                <span className="roadmap-actions">
+                  {editingId === roadmap.id ? (
+                    <>
+                      <button type="button" className="button button-primary button-small" disabled={busyId === roadmap.id} onClick={() => saveEdit(roadmap.id)}>Save</button>
+                      <button type="button" className="button button-quiet button-small" onClick={() => setEditingId('')}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="button button-quiet button-small" disabled={busyId === roadmap.id} onClick={() => startEdit(roadmap)}>Rename</button>
+                      <button type="button" className="button button-danger button-small" disabled={busyId === roadmap.id} onClick={() => remove(roadmap)}>Delete</button>
+                    </>
+                  )}
                 </span>
               </div>
-            </Link>
+            </article>
           ))}
         </div>
       )}
