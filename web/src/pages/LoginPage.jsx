@@ -79,6 +79,9 @@ export default function LoginPage() {
             <p className="eyebrow">Welcome back</p>
             <h1>Log in.</h1>
             <p className="auth-intro">Return to your workspace and keep your next milestone in view.</p>
+            {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('expired') && (
+              <p className="error-message" role="status">Your session expired — please log in again.</p>
+            )}
             <form className="auth-form" onSubmit={submit} noValidate>
               <label className="form-field">Email
                 <input name="email" type="email" autoComplete="email" value={form.email} onChange={updateField} aria-invalid={Boolean(errors.email)} />
