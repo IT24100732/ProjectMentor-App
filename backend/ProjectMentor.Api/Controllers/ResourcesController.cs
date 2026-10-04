@@ -15,16 +15,24 @@ namespace ProjectMentor.Api.Controllers;
 public sealed class ResourcesController(ResourceCatalogService catalog) : ControllerBase
 {
     /// <summary>Search, filter, sort and paginate the resource catalog.</summary>
+    // Logged-out visitors can browse the whole library; bookmarks and roadmap links need a login.
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<PagedResponse<ResourceItemResponse>>> Search([FromQuery] ResourceQuery query, CancellationToken cancellationToken)
-        => Ok(await catalog.SearchAsync(query, cancellationToken));
+        => Ok(await catalog.SearchAsync(query, cancellationToken, User.Identity?.IsAuthenticated == true ? User.GetUserId() : default));
+
+    [HttpPost("{id:guid}/bookmark")]
+    public async Task<IActionResult> Bookmark(Guid id, CancellationToken cancellationToken) =>
+        await catalog.ToggleBookmarkAsync(User.GetUserId(), id, cancellationToken) is { } on ? Ok(new { bookmarked = on }) : NotFound();
 
     /// <summary>Distinct topics, types and tags for building filter controls.</summary>
     [HttpGet("facets")]
+    [AllowAnonymous]
     public async Task<ActionResult<ResourceFacetsResponse>> Facets(CancellationToken cancellationToken)
         => Ok(await catalog.GetFacetsAsync(cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     public async Task<ActionResult<ResourceItemResponse>> Get(Guid id, CancellationToken cancellationToken)
     {
         var resource = await catalog.GetAsync(id, cancellationToken);

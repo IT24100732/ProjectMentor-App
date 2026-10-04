@@ -25,6 +25,33 @@ public sealed class ProjectMentorDbContext(DbContextOptions<ProjectMentorDbConte
     public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<GuidanceTemplate> GuidanceTemplates => Set<GuidanceTemplate>();
+    public DbSet<ChatTurn> ChatTurns => Set<ChatTurn>();
+    public DbSet<VivaSession> VivaSessions => Set<VivaSession>();
+    public DbSet<VivaQuestion> VivaQuestions => Set<VivaQuestion>();
+    public DbSet<StudyGroup> StudyGroups => Set<StudyGroup>();
+    public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
+    public DbSet<GroupInvite> GroupInvites => Set<GroupInvite>();
+    public DbSet<GroupMessage> GroupMessages => Set<GroupMessage>();
+    public DbSet<BoardTask> BoardTasks => Set<BoardTask>();
+    public DbSet<Upload> Uploads => Set<Upload>();
+    public DbSet<Post> Posts => Set<Post>();
+    public DbSet<PostLike> PostLikes => Set<PostLike>();
+    public DbSet<PostComment> PostComments => Set<PostComment>();
+    public DbSet<LearnVideo> LearnVideos => Set<LearnVideo>();
+    public DbSet<LearnTrack> LearnTracks => Set<LearnTrack>();
+    public DbSet<LearnLesson> LearnLessons => Set<LearnLesson>();
+    public DbSet<ContentFile> ContentFiles => Set<ContentFile>();
+    public DbSet<SiteEntry> SiteEntries => Set<SiteEntry>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<VivaCharacter> VivaCharacters => Set<VivaCharacter>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<PageFollow> PageFollows => Set<PageFollow>();
+    public DbSet<CommentReaction> CommentReactions => Set<CommentReaction>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
+    public DbSet<SupportRequest> SupportRequests => Set<SupportRequest>();
+    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
+    public DbSet<ResourceBookmark> ResourceBookmarks => Set<ResourceBookmark>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +85,190 @@ public sealed class ProjectMentorDbContext(DbContextOptions<ProjectMentorDbConte
         ConfigureResources(modelBuilder);
         ConfigureWorkflow(modelBuilder);
         ConfigureProgressAndGuidance(modelBuilder);
+
+        var chat = modelBuilder.Entity<ChatTurn>();
+        chat.ToTable("chat_turns");
+        chat.Property(x => x.Role).HasMaxLength(20).IsRequired();
+        chat.Property(x => x.Content).IsRequired();
+        chat.HasIndex(x => new { x.RoadmapRequestId, x.Sequence });
+        chat.HasOne<RoadmapRequest>().WithMany().HasForeignKey(x => x.RoadmapRequestId).OnDelete(DeleteBehavior.Cascade);
+
+        var viva = modelBuilder.Entity<VivaSession>();
+        viva.ToTable("viva_sessions");
+        viva.Property(x => x.Title).HasMaxLength(300).IsRequired();
+        viva.Property(x => x.Stage).HasMaxLength(20).IsRequired();
+        viva.Property(x => x.Difficulty).HasMaxLength(20).IsRequired();
+        viva.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        viva.Property(x => x.Details).HasColumnType("jsonb");
+        viva.Property(x => x.Language).HasMaxLength(10).IsRequired().HasDefaultValue("en-GB");
+        viva.HasOne<VivaCharacter>().WithMany().HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.SetNull);
+        viva.Property(x => x.Summary).HasColumnType("jsonb");
+        viva.HasIndex(x => new { x.StudentId, x.CreatedAt });
+        viva.HasOne<User>().WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
+        viva.HasOne<RoadmapRequest>().WithMany().HasForeignKey(x => x.RoadmapRequestId).OnDelete(DeleteBehavior.SetNull);
+
+        var vivaQuestion = modelBuilder.Entity<VivaQuestion>();
+        vivaQuestion.ToTable("viva_questions");
+        vivaQuestion.Property(x => x.Topic).HasMaxLength(100).IsRequired();
+        vivaQuestion.Property(x => x.Text).IsRequired();
+        vivaQuestion.Property(x => x.Verdict).HasMaxLength(30);
+        vivaQuestion.Property(x => x.Reaction).HasMaxLength(30);
+        vivaQuestion.Property(x => x.Strengths).HasColumnType("text[]");
+        vivaQuestion.Property(x => x.Improvements).HasColumnType("text[]");
+        vivaQuestion.HasIndex(x => new { x.VivaSessionId, x.Sequence });
+        vivaQuestion.HasOne(x => x.Session).WithMany(x => x.Questions).HasForeignKey(x => x.VivaSessionId).OnDelete(DeleteBehavior.Cascade);
+
+        ConfigureGroupsAndCommunity(modelBuilder);
+        SocialModel.Configure(modelBuilder);
+    }
+
+    private static void ConfigureGroupsAndCommunity(ModelBuilder modelBuilder)
+    {
+        var group = modelBuilder.Entity<StudyGroup>();
+        group.ToTable("study_groups");
+        group.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        group.Property(x => x.Description).HasMaxLength(1000);
+        group.Property(x => x.Color).HasMaxLength(20).IsRequired();
+        group.HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
+        group.HasOne<RoadmapRequest>().WithMany().HasForeignKey(x => x.RoadmapRequestId).OnDelete(DeleteBehavior.SetNull);
+
+        var member = modelBuilder.Entity<GroupMember>();
+        member.ToTable("group_members");
+        member.Property(x => x.Role).HasMaxLength(20).IsRequired();
+        member.HasIndex(x => new { x.GroupId, x.UserId }).IsUnique();
+        member.HasIndex(x => x.UserId);
+        member.HasOne(x => x.Group).WithMany(x => x.Members).HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+        member.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        var invite = modelBuilder.Entity<GroupInvite>();
+        invite.ToTable("group_invites");
+        invite.Property(x => x.Token).HasMaxLength(64).IsRequired();
+        invite.HasIndex(x => x.Token).IsUnique();
+        invite.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+
+        var message = modelBuilder.Entity<GroupMessage>();
+        message.ToTable("group_messages");
+        message.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+        message.HasIndex(x => new { x.GroupId, x.CreatedAt });
+        message.HasOne<StudyGroup>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+        message.HasOne(x => x.Sender).WithMany().HasForeignKey(x => x.SenderId).OnDelete(DeleteBehavior.SetNull);
+
+        var task = modelBuilder.Entity<BoardTask>();
+        task.ToTable("board_tasks");
+        task.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        task.Property(x => x.Description).HasMaxLength(2000);
+        task.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        task.Property(x => x.Source).HasMaxLength(20).IsRequired();
+        task.Property(x => x.EstimateHours).HasPrecision(5, 1);
+        task.HasIndex(x => new { x.GroupId, x.Status });
+        task.HasOne<StudyGroup>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+        task.HasOne<Milestone>().WithMany().HasForeignKey(x => x.MilestoneId).OnDelete(DeleteBehavior.SetNull);
+        task.HasOne(x => x.Assignee).WithMany().HasForeignKey(x => x.AssigneeId).OnDelete(DeleteBehavior.SetNull);
+
+        var upload = modelBuilder.Entity<Upload>();
+        upload.ToTable("uploads");
+        upload.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+        upload.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+        upload.HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Cascade);
+
+        var post = modelBuilder.Entity<Post>();
+        post.ToTable("posts");
+        post.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+        post.Property(x => x.ProjectTitle).HasMaxLength(200);
+        post.Property(x => x.Content).HasMaxLength(5000).IsRequired();
+        post.Property(x => x.UploadIds).HasColumnType("uuid[]");
+        // Posts that existed before moderation was added stay visible.
+        post.Property(x => x.Status).HasMaxLength(20).IsRequired().HasDefaultValue(PostStatus.Approved);
+        post.Property(x => x.ModerationNote).HasMaxLength(500);
+        post.HasIndex(x => new { x.Status, x.CreatedAt });
+        post.HasIndex(x => x.CreatedAt);
+        post.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorId).OnDelete(DeleteBehavior.Cascade);
+        post.HasOne<StudyGroup>().WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.SetNull);
+
+        var video = modelBuilder.Entity<LearnVideo>();
+        video.ToTable("learn_videos");
+        video.Property(x => x.YoutubeId).HasMaxLength(20).IsRequired();
+        video.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        video.Property(x => x.Channel).HasMaxLength(120).IsRequired();
+        video.Property(x => x.Duration).HasMaxLength(20);
+        video.HasIndex(x => x.YoutubeId).IsUnique();
+
+        var track = modelBuilder.Entity<LearnTrack>();
+        track.ToTable("learn_tracks");
+        track.Property(x => x.Key).HasMaxLength(40).IsRequired();
+        track.Property(x => x.Label).HasMaxLength(120).IsRequired();
+        track.Property(x => x.Intro).HasMaxLength(1000).IsRequired();
+        track.HasIndex(x => x.Key).IsUnique();
+
+        var lesson = modelBuilder.Entity<LearnLesson>();
+        lesson.ToTable("learn_lessons");
+        lesson.Property(x => x.Slug).HasMaxLength(60).IsRequired();
+        lesson.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        lesson.Property(x => x.Lead).HasMaxLength(1000);
+        lesson.Property(x => x.BlocksJson).HasColumnType("jsonb").IsRequired();
+        lesson.HasIndex(x => new { x.TrackId, x.Slug }).IsUnique();
+        lesson.HasOne(x => x.Track).WithMany(x => x.Lessons).HasForeignKey(x => x.TrackId).OnDelete(DeleteBehavior.Cascade);
+
+        var file = modelBuilder.Entity<ContentFile>();
+        file.ToTable("content_files");
+        file.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+        file.Property(x => x.Name).HasMaxLength(160).IsRequired();
+        file.Property(x => x.Category).HasMaxLength(80);
+        file.Property(x => x.Format).HasMaxLength(40);
+        file.Property(x => x.WhenToUse).HasMaxLength(500);
+        file.Property(x => x.Description).HasMaxLength(1000);
+        file.Property(x => x.Inside).HasColumnType("text[]");
+        file.Property(x => x.SaveAs).HasMaxLength(160);
+        file.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+        file.Property(x => x.ContentType).HasMaxLength(150).IsRequired();
+        file.HasIndex(x => new { x.Kind, x.SortOrder });
+
+        var site = modelBuilder.Entity<SiteEntry>();
+        site.ToTable("site_entries");
+        site.Property(x => x.Section).HasMaxLength(20).IsRequired();
+        site.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        site.Property(x => x.Body).HasMaxLength(2000).IsRequired();
+        site.Property(x => x.Image).HasMaxLength(60);
+        site.Property(x => x.LinkUrl).HasMaxLength(300);
+        site.Property(x => x.LinkLabel).HasMaxLength(60);
+        site.HasIndex(x => new { x.Section, x.SortOrder });
+
+        var like = modelBuilder.Entity<PostLike>();
+        like.ToTable("post_likes");
+        like.HasIndex(x => new { x.PostId, x.UserId }).IsUnique();
+        like.Property(x => x.Reaction).HasMaxLength(20).IsRequired().HasDefaultValue("Like");
+
+        var note = modelBuilder.Entity<UserNotification>();
+        note.ToTable("user_notifications");
+        note.Property(x => x.Kind).HasMaxLength(30).IsRequired();
+        note.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        note.Property(x => x.Body).HasMaxLength(500);
+        note.Property(x => x.Link).HasMaxLength(300);
+        note.HasIndex(x => new { x.UserId, x.CreatedAt });
+        note.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        var ch = modelBuilder.Entity<VivaCharacter>();
+        ch.ToTable("viva_characters");
+        ch.Property(x => x.Name).HasMaxLength(60).IsRequired();
+        ch.Property(x => x.Tagline).HasMaxLength(160);
+        ch.Property(x => x.Preset).HasMaxLength(30).IsRequired();
+        ch.Property(x => x.Gender).HasMaxLength(10).IsRequired();
+        ch.Property(x => x.SkinTone).HasMaxLength(9).IsRequired();
+        ch.Property(x => x.HairColor).HasMaxLength(9).IsRequired();
+        ch.Property(x => x.HairStyle).HasMaxLength(10).IsRequired();
+        ch.Property(x => x.OutfitColor).HasMaxLength(9).IsRequired();
+        ch.Property(x => x.AccentColor).HasMaxLength(9).IsRequired();
+        ch.Property(x => x.Language).HasMaxLength(10).IsRequired();
+        ch.Property(x => x.Style).HasMaxLength(10).IsRequired();
+        like.HasOne(x => x.Post).WithMany(x => x.Likes).HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+        like.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        var comment = modelBuilder.Entity<PostComment>();
+        comment.ToTable("post_comments");
+        comment.Property(x => x.Content).HasMaxLength(2000).IsRequired();
+        comment.HasIndex(x => new { x.PostId, x.CreatedAt });
+        comment.HasOne(x => x.Post).WithMany(x => x.Comments).HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+        comment.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorId).OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureUsers(ModelBuilder modelBuilder)
@@ -70,6 +281,10 @@ public sealed class ProjectMentorDbContext(DbContextOptions<ProjectMentorDbConte
         entity.Property(x => x.PasswordHash).IsRequired();
         entity.Property(x => x.FullName).HasMaxLength(200).IsRequired();
         entity.Property(x => x.Role).HasColumnType("user_role");
+        entity.Property(x => x.Bio).HasMaxLength(500);
+        entity.Property(x => x.Badge).HasMaxLength(20);
+        entity.Property(x => x.GoogleSubject).HasMaxLength(64);
+        entity.HasIndex(x => x.GoogleSubject).IsUnique().HasFilter("\"GoogleSubject\" IS NOT NULL");
         entity.HasIndex(x => x.Email).HasDatabaseName("ix_users_email_lower").IsUnique().HasFilter(null);
     }
 

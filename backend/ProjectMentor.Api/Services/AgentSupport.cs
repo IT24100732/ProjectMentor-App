@@ -9,6 +9,8 @@ public sealed class WorkflowContext
     public required AgentWorkflowRun Run { get; init; }
     public required RoadmapRequest Request { get; init; }
     public required IntakeRequest Intake { get; init; }
+    /// <summary>Summary of the chosen idea (Path A), so the Planner can personalise the roadmap.</summary>
+    public string? IdeaSummary { get; set; }
     public List<PlannedMilestone> Plan { get; } = [];
     public Roadmap? Roadmap { get; set; }
     public bool AnalysisPassed { get; set; }

@@ -16,7 +16,12 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
     private static readonly IReadOnlyDictionary<string, ResourceType> ResourceTypeLookup =
         Enum.GetValues<ResourceType>().ToDictionary(x => x.ToString(), x => x, StringComparer.OrdinalIgnoreCase);
 
-    public async Task<PagedResponse<ResourceItemResponse>> SearchAsync(ResourceQuery query, CancellationToken cancellationToken)
+    public static readonly string[] Levels = ["Beginner", "Intermediate", "Advanced"];
+
+    static string Level(string? v) => Levels.FirstOrDefault(l => string.Equals(l, v?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Beginner";
+    static string? Opt(string? v, int max) => string.IsNullOrWhiteSpace(v) ? null : v.Trim().Length > max ? v.Trim()[..max] : v.Trim();
+
+    public async Task<PagedResponse<ResourceItemResponse>> SearchAsync(ResourceQuery query, CancellationToken cancellationToken, Guid userId = default)
     {
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
@@ -29,6 +34,8 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
             resources = resources.Where(x =>
                 EF.Functions.ILike(x.Title, term) ||
                 EF.Functions.ILike(x.Topic, term) ||
+                (x.Provider != null && EF.Functions.ILike(x.Provider, term)) ||
+                x.Tags.Any(t => EF.Functions.ILike(t.Tag.Name, term)) ||
                 (x.Description != null && EF.Functions.ILike(x.Description, term)));
         }
 
@@ -41,14 +48,34 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
         if (!string.IsNullOrWhiteSpace(query.Tag))
             resources = resources.Where(x => x.Tags.Any(t => t.Tag.Name == query.Tag));
 
+        if (!string.IsNullOrWhiteSpace(query.Level)) resources = resources.Where(x => x.Level == query.Level);
+        if (query.Price == "free") resources = resources.Where(x => x.IsFree);
+        if (query.Price == "paid") resources = resources.Where(x => !x.IsFree);
+
+        // Per-student extras: bookmarks and resources linked to their roadmap milestones.
+        var bookmarks = userId == default ? [] : await db.ResourceBookmarks.Where(b => b.UserId == userId).Select(b => b.ResourceId).ToListAsync(cancellationToken);
+        var linked = userId == default ? [] : await db.MilestoneResources
+            .Where(m => m.Milestone.Roadmap.StudentId == userId && m.Milestone.Roadmap.Status != RoadmapStatus.Superseded)
+            .Select(m => new { m.ResourceId, m.Milestone.Title }).ToListAsync(cancellationToken);
+        if (query.Bookmarked) resources = resources.Where(x => bookmarks.Contains(x.Id));
+        if (query.Linked)
+        {
+            var linkedIds = linked.Select(l => l.ResourceId).Distinct().ToList();
+            resources = resources.Where(x => linkedIds.Contains(x.Id));
+        }
+
         resources = ApplySort(resources, query.SortBy, query.SortDir);
 
         var totalItems = await resources.CountAsync(cancellationToken);
-        var items = await resources
+        var rows = await resources
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(x => ToResponse(x))
             .ToListAsync(cancellationToken);
+        var items = rows.Select(x => ToResponse(x) with
+        {
+            Bookmarked = bookmarks.Contains(x.Id),
+            LinkedMilestones = linked.Where(l => l.ResourceId == x.Id).Select(l => l.Title).Distinct().ToList(),
+        }).ToList();
 
         var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
         return new PagedResponse<ResourceItemResponse>(items, page, pageSize, totalItems, totalPages);
@@ -66,7 +93,20 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
         var topics = await db.Resources.AsNoTracking().Select(x => x.Topic).Distinct().OrderBy(x => x).ToListAsync(cancellationToken);
         var tags = await db.Tags.AsNoTracking().Select(x => x.Name).OrderBy(x => x).ToListAsync(cancellationToken);
         var types = Enum.GetNames<ResourceType>().OrderBy(x => x).ToList();
-        return new ResourceFacetsResponse(topics, types, tags);
+        var total = await db.Resources.CountAsync(cancellationToken);
+        var free = await db.Resources.CountAsync(x => x.IsFree, cancellationToken);
+        return new ResourceFacetsResponse(topics, types, tags, Levels, total, free, total - free);
+    }
+
+    /// <summary>Adds or removes a bookmark. Returns the new state, or null when the resource does not exist.</summary>
+    public async Task<bool?> ToggleBookmarkAsync(Guid userId, Guid resourceId, CancellationToken ct)
+    {
+        if (!await db.Resources.AnyAsync(r => r.Id == resourceId, ct)) return null;
+        var existing = await db.ResourceBookmarks.FirstOrDefaultAsync(b => b.UserId == userId && b.ResourceId == resourceId, ct);
+        if (existing is not null) { db.ResourceBookmarks.Remove(existing); await db.SaveChangesAsync(ct); return false; }
+        db.ResourceBookmarks.Add(new ResourceBookmark { Id = Guid.NewGuid(), UserId = userId, ResourceId = resourceId });
+        try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { }
+        return true;
     }
 
     public async Task<ResourceItemResponse> CreateAsync(Guid actorId, CreateResourceRequest request, CancellationToken cancellationToken)
@@ -82,6 +122,8 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
             ResourceType = resourceType,
             Topic = request.Topic.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            Level = Level(request.Level), Duration = Opt(request.Duration, 40), IsFree = request.IsFree,
+            Price = request.IsFree ? null : Opt(request.Price, 60), Provider = Opt(request.Provider, 80), IsFeatured = request.IsFeatured,
             AddedById = actorId
         };
         db.Resources.Add(resource);
@@ -102,6 +144,13 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
         resource.Url = request.Url.Trim();
         resource.Topic = request.Topic.Trim();
         resource.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        resource.Level = Level(request.Level);
+        resource.Duration = Opt(request.Duration, 40);
+        resource.IsFree = request.IsFree;
+        resource.Price = request.IsFree ? null : Opt(request.Price, 60);
+        resource.Provider = Opt(request.Provider, 80);
+        resource.IsFeatured = request.IsFeatured;
+        resource.UpdatedAt = DateTimeOffset.UtcNow;
 
         db.ResourceTags.RemoveRange(resource.Tags);
         resource.Tags.Clear();
@@ -132,6 +181,8 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
         {
             "topic" => descending ? query.OrderByDescending(x => x.Topic) : query.OrderBy(x => x.Topic),
             "type" => descending ? query.OrderByDescending(x => x.ResourceType) : query.OrderBy(x => x.ResourceType),
+            "featured" => query.OrderByDescending(x => x.IsFeatured).ThenByDescending(x => x.IsFree).ThenBy(x => x.Title),
+            "level" => descending ? query.OrderByDescending(x => x.Level) : query.OrderBy(x => x.Level),
             "createdat" => descending ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
             _ => descending ? query.OrderByDescending(x => x.Title) : query.OrderBy(x => x.Title),
         };
@@ -178,5 +229,6 @@ public sealed class ResourceCatalogService(ProjectMentorDbContext db)
         resource.ResourceType.ToString(),
         resource.Topic,
         resource.Description,
-        resource.Tags.Select(t => t.Tag.Name).OrderBy(x => x).ToList());
+        resource.Tags.Select(t => t.Tag.Name).OrderBy(x => x).ToList(),
+        resource.Level, resource.Duration, resource.IsFree, resource.Price, resource.Provider, resource.IsFeatured);
 }

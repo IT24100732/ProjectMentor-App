@@ -6,8 +6,6 @@ namespace ProjectMentor.Data;
 public static class SeedData
 {
     private static readonly Guid AdminId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid DemoStudentId = Guid.Parse("11111111-1111-1111-1111-111111111112");
-    private const string DemoStudentPasswordHash = "$2a$11$bpbBzB2NsZWWOWss5h1g9eTZIIbjao.eTaUF21wJ/Ik689uaBHrj6";
 
     public static async Task InitializeAsync(ProjectMentorDbContext db, IConfiguration configuration, CancellationToken cancellationToken = default)
     {
@@ -26,26 +24,6 @@ public static class SeedData
                 CreatedAt = now, UpdatedAt = now
             };
             db.Users.Add(admin);
-        }
-
-        var demoStudent = await db.Users.SingleOrDefaultAsync(x => x.Email == "react.demo@projectmentor.local", cancellationToken);
-        if (demoStudent is null)
-        {
-            demoStudent = new User
-            {
-                Id = DemoStudentId, Email = "react.demo@projectmentor.local", PasswordHash = DemoStudentPasswordHash,
-                FullName = "React Demo Student", Role = UserRole.Student, YearOfStudy = 2, IsActive = true,
-                CreatedAt = now, UpdatedAt = now
-            };
-            db.Users.Add(demoStudent);
-        }
-        else
-        {
-            demoStudent.PasswordHash = DemoStudentPasswordHash;
-            demoStudent.FullName = "React Demo Student";
-            demoStudent.Role = UserRole.Student;
-            demoStudent.YearOfStudy = 2;
-            demoStudent.IsActive = true;
         }
 
         if (!await db.Questions.AnyAsync(cancellationToken))

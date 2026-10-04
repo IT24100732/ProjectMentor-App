@@ -16,6 +16,7 @@ jobs:
           dotnet-version: 8.x
       - run: dotnet restore backend/ProjectMentor.Api/ProjectMentor.csproj
       - run: dotnet build backend/ProjectMentor.Api/ProjectMentor.csproj --no-restore
+      - run: dotnet test backend/ProjectMentor.Tests/ProjectMentor.Tests.csproj
 
   web:
     runs-on: ubuntu-latest

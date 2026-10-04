@@ -1,93 +1,106 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
-const apiBaseUrl = 'http://10.0.2.2:5220';
-const demoEmail = 'flutter.demo@projectmentor.local';
-const demoPassword = 'Student123!';
+import 'core/config.dart';
+import 'core/session.dart';
+import 'core/theme.dart';
+import 'screens/auth_screens.dart';
+import 'screens/community_screens.dart';
+import 'screens/group_screens.dart';
+import 'screens/home_screen.dart';
+import 'screens/learn_screens.dart';
+import 'screens/more_screens.dart';
+import 'screens/roadmap_screens.dart';
+import 'screens/shell.dart';
+import 'screens/splash_screen.dart';
+import 'screens/viva_screens.dart';
+import 'screens/profile_screen.dart';
 
-void main() => runApp(const ProjectMentorApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.dark));
+  await AppConfig.load();
+  await session.restore();
+  runApp(const ProjectMentorApp());
+}
+
+final _rootKey = GlobalKey<NavigatorState>();
+
+const _public = {'/splash', '/welcome', '/login', '/register', '/forgot', '/contact'};
+
+final router = GoRouter(
+  navigatorKey: _rootKey,
+  initialLocation: '/splash',
+  refreshListenable: session,
+  redirect: (context, state) {
+    final loc = state.matchedLocation;
+    if (loc == '/splash') return null;
+    if (!session.isLoggedIn && !_public.contains(loc)) {
+      if (loc.startsWith('/join')) session.pendingInvite = state.pathParameters['code'];
+      return session.onboarded ? '/login' : '/welcome';
+    }
+    if (session.isLoggedIn && (loc == '/login' || loc == '/register' || loc == '/welcome' || loc == '/forgot')) {
+      final invite = session.pendingInvite;
+      if (invite != null) { session.pendingInvite = null; session.autoJoinInvite = invite; return '/join/$invite'; }
+      return '/home';
+    }
+    return null;
+  },
+  routes: [
+    GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+    GoRoute(path: '/welcome', builder: (_, __) => const OnboardingScreen()),
+    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/register', builder: (_, s) => RegisterScreen(prefill: s.extra is Map ? s.extra as Map : null)),
+    GoRoute(path: '/forgot', builder: (_, __) => const ForgotPasswordScreen()),
+    GoRoute(path: '/contact', builder: (_, s) => ContactAdminScreen(prefill: s.extra as Map?)),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, shell) => AppShell(shell: shell),
+      branches: [
+        StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (_, __) => const HomeScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/roadmaps', builder: (_, __) => const RoadmapsScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/groups', builder: (_, __) => const GroupsScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/community', builder: (_, __) => const CommunityScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (_, __) => const MoreScreen())]),
+      ],
+    ),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/roadmaps/new', builder: (_, __) => const NewRoadmapScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/roadmaps/:id', builder: (_, s) => RoadmapDetailScreen(id: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/roadmaps/:id/agents', builder: (_, s) => AgentsScreen(id: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/roadmaps/:id/ideas', builder: (_, s) => IdeasScreen(id: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/roadmaps/:id/chat', builder: (_, s) => MentorChatScreen(id: s.pathParameters['id']!, extra: s.extra as Map<String, String>?)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/groups/:id', builder: (_, s) => GroupWorkspaceScreen(id: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/join', builder: (_, __) => const JoinGroupScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/join/:code', builder: (_, s) => JoinGroupScreen(code: s.pathParameters['code'])),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/viva', builder: (_, __) => const VivaHomeScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/viva/new', builder: (_, s) => VivaSetupScreen(roadmapId: s.uri.queryParameters['roadmap'])),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/viva/:id', builder: (_, s) => VivaRoomScreen(id: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/learn', builder: (_, s) => LearnScreen(initialTrack: s.uri.queryParameters['track'])),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/learn/:track/:lesson', builder: (_, s) => LessonScreen(track: s.pathParameters['track']!, lessonId: s.pathParameters['lesson']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/templates', builder: (_, __) => const TemplatesScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/resources', builder: (_, __) => const ResourcesScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/people/:id', builder: (_, s) => PersonProfileScreen(userId: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/community-search', builder: (_, __) => const CommunitySearchScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/posts/:id', builder: (_, s) => PostScreen(id: s.pathParameters['id']!)),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+    GoRoute(parentNavigatorKey: _rootKey, path: '/profile', builder: (_, __) => const ProfileScreen()),
+  ],
+);
 
 class ProjectMentorApp extends StatelessWidget {
   const ProjectMentorApp({super.key});
-
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => MaterialApp.router(
         title: 'ProjectMentor',
-        theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo), useMaterial3: true),
-        home: const WorkflowScreen(),
-      );
-}
-
-class WorkflowScreen extends StatefulWidget {
-  const WorkflowScreen({super.key});
-  @override
-  State<WorkflowScreen> createState() => _WorkflowScreenState();
-}
-
-class _WorkflowScreenState extends State<WorkflowScreen> {
-  String? token;
-  Map<String, dynamic>? workflow;
-  String message = 'Ready to run the shared API workflow.';
-  bool busy = false;
-
-  Future<dynamic> call(String path, {String method = 'GET', Map<String, dynamic>? body, String? auth}) async {
-    final headers = {'Content-Type': 'application/json', if (auth != null) 'Authorization': 'Bearer $auth'};
-    final uri = Uri.parse('$apiBaseUrl$path');
-    final response = method == 'POST'
-        ? await http.post(uri, headers: headers, body: jsonEncode(body ?? {}))
-        : await http.get(uri, headers: headers);
-    final decoded = response.body.isEmpty ? null : jsonDecode(response.body);
-    if (response.statusCode < 200 || response.statusCode >= 300) throw Exception(decoded?.toString() ?? 'Request failed');
-    return decoded;
-  }
-
-  Future<void> runWorkflow() async {
-    setState(() { busy = true; message = 'Logging in and running agents...'; });
-    try {
-      dynamic session;
-      try { session = await call('/api/auth/login', method: 'POST', body: {'email': demoEmail, 'password': demoPassword}); }
-      catch (_) {
-        await call('/api/auth/register', method: 'POST', body: {'email': demoEmail, 'password': demoPassword, 'fullName': 'Flutter Demo Student', 'yearOfStudy': 2});
-        session = await call('/api/auth/login', method: 'POST', body: {'email': demoEmail, 'password': demoPassword});
-      }
-      token = session['token'];
-      final created = await call('/api/roadmap-requests', method: 'POST', auth: token, body: {'year': 2, 'projectType': 'mobile', 'deadline': '2026-10-30', 'hoursPerWeek': 8});
-      workflow = await call('/api/roadmap-requests/${created['roadmapRequestId']}', auth: token);
-      setState(() => message = 'Workflow paused for student approval.');
-    } catch (error) { setState(() => message = error.toString()); }
-    finally { setState(() => busy = false); }
-  }
-
-  Future<void> decide(String action) async {
-    if (token == null || workflow == null) return;
-    setState(() { busy = true; message = 'Saving student decision...'; });
-    try {
-      final path = '/api/roadmaps/${workflow!['id']}/$action';
-      workflow = await call(path, method: 'POST', auth: token, body: {'comment': 'Decision from Flutter demo'});
-      setState(() => message = 'Decision saved: ${workflow!['status']}');
-    } catch (error) { setState(() => message = error.toString()); }
-    finally { setState(() => busy = false); }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('ProjectMentor workflow')),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
-          Text(message),
-          const SizedBox(height: 20),
-          FilledButton(onPressed: busy ? null : runWorkflow, child: const Text('Login and generate roadmap')),
-          if (workflow != null) ...[
-            const SizedBox(height: 20),
-            Text('Request: ${workflow!['requestStatus']}'),
-            Text('Roadmap: ${workflow!['status']}'),
-            ...((workflow!['milestones'] as List).map((item) => ListTile(title: Text(item['title']), subtitle: Text('${item['phase']} - ${item['dueDate']}')))),
-            if (workflow!['status'] == 'PendingApproval') Row(children: [
-              Expanded(child: FilledButton(onPressed: busy ? null : () => decide('accept'), child: const Text('Accept'))),
-              const SizedBox(width: 12),
-              Expanded(child: OutlinedButton(onPressed: busy ? null : () => decide('request-revision'), child: const Text('Request revision'))),
-            ]),
-          ],
-        ]),
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(),
+        routerConfig: router,
+        // On a tablet or a wide browser window, keep the phone layout readable instead of stretching it.
+        builder: (context, child) => LayoutBuilder(builder: (context, c) => c.maxWidth <= 640
+            ? child!
+            : ColoredBox(color: const Color(0xFFE9E3D6), child: Center(child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: ClipRect(child: MediaQuery(data: MediaQuery.of(context).copyWith(size: Size(480, c.maxHeight)), child: child!)),
+              )))),
       );
 }
